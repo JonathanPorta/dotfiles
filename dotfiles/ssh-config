@@ -1,0 +1,3 @@
+Host *.porta.codes *.plato.local *.local portaj-*
+  User portaj
+  ForwardAgent yes
