@@ -1,7 +1,12 @@
 #!/bin/bash
-
+set -e
 command -v curl >/dev/null 2>&1 || { echo "I require curl but it's not installed.  Aborting." >&2; exit 1; }
 command -v jq >/dev/null 2>&1 || { echo "I require jq but it's not installed.  Aborting." >&2; exit 1; }
+
+# Make my typical devel directory
+export DEVEL="$HOME/devel/portaj"
+export DOTFILES_CHECKOUT="$DEVEL/dotfiles"
+mkdir -p $DEVEL
 
 # we want to be able to run this and update the authorized keys with whatever we have on GH
 curl https://api.github.com/users/jonathanporta/keys | jq -r '.[] | .key' > $HOME/.ssh/authorized_keys
@@ -31,3 +36,29 @@ if [ -f "$HOME/.zshrc" ]; then
   mv "$HOME/.zshrc" "$HOME/.zshrc.old"
 fi
 ln -s "$HOME/dotfiles/.zshrc" "$HOME/.zshrc"
+
+# Replace existing .gitconfig in $HOME with a link to our dotfile version
+if [ -f "$HOME/.gitconfig" ]; then
+  echo "'$HOME/.gitconfig' already exists - renaming to '$HOME/.gitconfig.old' and linking to '$HOME/dotfiles/.gitconfig'."
+  mv "$HOME/.gitconfig" "$HOME/.gitconfig.old"
+fi
+ln -s "$HOME/dotfiles/.gitconfig" "$HOME/.gitconfig"
+
+# Replace existing .gitignore_global in $HOME with a link to our dotfile version
+if [ -f "$HOME/.gitignore_global" ]; then
+  echo "'$HOME/.gitignore_global' already exists - renaming to '$HOME/.gitignore_global.old' and linking to '$HOME/dotfiles/.gitignore_global'."
+  mv "$HOME/.gitignore_global" "$HOME/.gitignore_global.old"
+fi
+ln -s "$HOME/dotfiles/.gitignore_global" "$HOME/.gitignore_global"
+
+# Replace existing .chruby in $HOME with a link to our dotfile version
+if [ -f "$HOME/.chruby" ]; then
+  echo "'$HOME/.chruby' already exists - renaming to '$HOME/.chruby.old' and linking to '$HOME/dotfiles/.chruby'."
+  mv "$HOME/.chruby" "$HOME/.chruby.old"
+fi
+ln -s "$HOME/dotfiles/.chruby" "$HOME/.chruby"
+
+
+echo "Installing applications..."
+echo "About to run '$DOTFILES_CHECKOUT/installation/all.sh'."
+$DOTFILES_CHECKOUT/installation/all.sh
