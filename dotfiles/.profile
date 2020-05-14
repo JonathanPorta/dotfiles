@@ -60,11 +60,12 @@ export NVM_DIR="$HOME/.nvm"
 
 
 # Ruby Shite
-source /usr/local/share/chruby/chruby.sh
-source /usr/local/share/chruby/auto.sh
+source $HOME/.chruby
+alias plz='foreman run bundle exec'
+
 export PATH="$HOME/.nenv/bin:$PATH"
 eval "$(nenv init -)"
-alias plz='foreman run bundle exec'
+
 
 
 # Docker poo
@@ -72,25 +73,29 @@ alias destroy_the_child='docker rm $(docker ps -a -q) ; docker rmi $(docker imag
 
 
 # anaconda (python residue)
-export PATH="$HOME/anaconda3/bin:$PATH"
+export PATH="$HOME/anaconda3/bin:$HOME/.local/bin:$PATH"
 source $HOME/anaconda3/etc/profile.d/conda.sh
 
-
+#TODO: Uncomment as needed
 ## special bullshitters
 # Chromium build tools
-export PATH="$HOME/devel/depot_tools:$PATH"
+#export PATH="$HOME/devel/depot_tools:$PATH"
 
+#TODO: Handle for multiple OS'
 # nvidia cuda libs
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/extras/CUPTI/lib64
+#export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/extras/CUPTI/lib64
 
+#TODO: Handle for multiple OS'
 # imagemagick binary
-export PATH="/usr/local/opt/imagemagick@6/bin:$PATH"
+#export PATH="/usr/local/opt/imagemagick@6/bin:$PATH"
 
 
+#TODO: Handle for multiple OS'
 # Android Studio Crap + Other Mobile Dev
-export PATH="/opt/google/android-studio/bin:$PATH"
-export PATH="/Users/portaj/Library/Android/sdk/platform-tools:$PATH"
-export PATH="$HOME/.fastlane/bin:/Users/portaj/Library/Android/sdk/ndk-bundle:$PATH"
+#export PATH="/opt/google/android-studio/bin:$PATH"
+#export PATH="/Users/portaj/Library/Android/sdk/platform-tools:$PATH" # Mac OS
+#export PATH="$HOME/Android/Sdk/platform-tools:$PATH" # Linux
+#export PATH="$HOME/.fastlane/bin:/Users/portaj/Library/Android/sdk/ndk-bundle:$PATH"
 
 
 # family cookie recipes
