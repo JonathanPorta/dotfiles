@@ -51,16 +51,30 @@ if [ -f "$HOME/.gitignore_global" ]; then
 fi
 ln -s "$HOME/dotfiles/.gitignore_global" "$HOME/.gitignore_global"
 
+# Replace existing .chruby in $HOME with a link to our dotfile version
 if [ -f "$HOME/.chruby" ]; then
   echo "'$HOME/.chruby' already exists - renaming to '$HOME/.chruby.old' and linking to '$HOME/dotfiles/.chruby'."
   mv "$HOME/.chruby" "$HOME/.chruby.old"
 fi
+ln -s "$HOME/dotfiles/.chruby" "$HOME/.chruby"
 
+# Get ZSH ready
 if [ -f "$HOME/.oh-my-zsh/oh-my-zsh.sh" ]; then
   echo "'$HOME/.oh-my-zsh/oh-my-zsh.sh' already exists - renaming to '$HOME/.oh-my-zsh.old' and installing oh-my-zsh"
-  mv "$HOME/.oh-my-zsh" "$HOME/.oh-my-zsh.old"
+  mv "$HOME/.oh-my-zsh" "$HOME/.oh-my-zsh.old$(date -u +%s)"
 fi
 sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
+export ZSH_CUSTOM="$HOME/.oh-my-zsh/custom"
+$DOTFILES_CHECKOUT/installation/oh-my-zsh.sh
+
+# source $HOME/.zshrc
+chsh -s $(which zsh)
+# sudo chsh -s $(which zsh) ## For root
+
+# Doing these first for some reason.
+# $DOTFILES_CHECKOUT/installation/node.sh
+# $DOTFILES_CHECKOUT/installation/ruby.sh
+# $DOTFILES_CHECKOUT/installation/vim.sh
 
 echo "Installing applications..."
 echo "About to run '$DOTFILES_CHECKOUT/installation/all.sh'."

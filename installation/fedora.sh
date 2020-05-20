@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/zsh
 set +e
 INSTALL_DIR=$(dirname "$0")
 source $INSTALL_DIR/include/lib.sh
@@ -12,13 +12,17 @@ sudo dnf install -y gnome-tweak-tool dolphin smb4k
 
 # echo "Installing Dolphin and smb4k"
 # sudo dnf install -y dolphin smb4k
-if ! exists atom; then
+if ! (exists atom); then
   echo "Installing Atom"
   curl -Lo atom.rpm https://atom.io/download/rpm
   sudo dnf install -y ./atom.rpm && rm ./atom.rpm
+else
+  echo "atom is already installed...skipping"
 fi
 
-if ! exists docker; then
+if ! (exists docker); then
   echo "Installing docker via moby-engine"
   sudo dnf install -y moby-engine
+else
+  echo "docker is already installed...skipping"
 fi

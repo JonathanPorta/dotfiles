@@ -1,5 +1,6 @@
-#!/bin/bash
+#!/bin/zsh
+source $HOME/.zshrc
 
-exists(){
+export exists(){
   command -v "$1" >/dev/null 2>&1
 }

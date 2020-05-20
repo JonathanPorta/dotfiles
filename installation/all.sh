@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/zsh
 set -e
 
 sudo dnf clean all ; sudo dnf makecache
