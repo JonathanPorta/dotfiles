@@ -67,6 +67,14 @@ sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/too
 export ZSH_CUSTOM="$HOME/.oh-my-zsh/custom"
 $DOTFILES_CHECKOUT/installation/oh-my-zsh.sh
 
+## DO THIS AGAIN BECAUSE oh-my-zsh moves it.
+# Replace existing .zshrc in $HOME with a link to our dotfile version
+if [ -f "$HOME/.zshrc" ]; then
+  echo "'$HOME/.zshrc' already exists - renaming to '$HOME/.zshrc.old' and linking to '$HOME/dotfiles/.zshrc'."
+  mv "$HOME/.zshrc" "$HOME/.zshrc.old"
+fi
+ln -s "$HOME/dotfiles/.zshrc" "$HOME/.zshrc"
+
 # source $HOME/.zshrc
 chsh -s $(which zsh)
 # sudo chsh -s $(which zsh) ## For root
