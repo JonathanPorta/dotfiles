@@ -4,7 +4,6 @@ source $HOME/.zshrc
 chsh -s $(which zsh)
 sudo chsh -s $(which zsh)
 
-
 echo "Install Oh My ZSH customizations"
 git clone https://github.com/denysdovhan/spaceship-prompt.git "$ZSH_CUSTOM/themes/spaceship-prompt"
 ln -s "$ZSH_CUSTOM/themes/spaceship-prompt/spaceship.zsh-theme" "$ZSH_CUSTOM/themes/spaceship.zsh-theme"

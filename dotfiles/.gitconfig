@@ -1,5 +1,18 @@
+[user]
+	name = Jonathan Porta
+	email = jonathan@jonathanporta.com
+
+[core]
+  excludesfile = $HOME/.gitignore_global
+
+[help]
+  autocorrect = 1
+
+[rerere]
+  enabled = 1
+
 [push]
-  default = matching
+  default = upstream
 
 [alias]
   lg = log --color --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr)%C(bold blue)<%an>%Creset' --abbrev-commit
@@ -15,9 +28,6 @@
 
 [branch]
 	autosetuprebase = always
-
-[push]
-	default = tracking
 
 [color "branch"]
   current = yellow reverse
@@ -50,3 +60,4 @@
 
 [url "ssh://git@github.com/"]
 	insteadOf = https://github.com/
+

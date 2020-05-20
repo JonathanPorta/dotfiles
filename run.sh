@@ -44,13 +44,23 @@ if [ -f "$HOME/.gitconfig" ]; then
 fi
 ln -s "$HOME/dotfiles/.gitconfig" "$HOME/.gitconfig"
 
-# Replace existing .chruby in $HOME with a link to our dotfile version
+# Replace existing .gitignore_global in $HOME with a link to our dotfile version
+if [ -f "$HOME/.gitignore_global" ]; then
+  echo "'$HOME/.gitignore_global' already exists - renaming to '$HOME/.gitignore_global.old' and linking to '$HOME/dotfiles/.gitignore_global'."
+  mv "$HOME/.gitignore_global" "$HOME/.gitignore_global.old"
+fi
+ln -s "$HOME/dotfiles/.gitignore_global" "$HOME/.gitignore_global"
+
 if [ -f "$HOME/.chruby" ]; then
   echo "'$HOME/.chruby' already exists - renaming to '$HOME/.chruby.old' and linking to '$HOME/dotfiles/.chruby'."
   mv "$HOME/.chruby" "$HOME/.chruby.old"
 fi
-ln -s "$HOME/dotfiles/.chruby" "$HOME/.chruby"
 
+if [ -f "$HOME/.oh-my-zsh/oh-my-zsh.sh" ]; then
+  echo "'$HOME/.oh-my-zsh/oh-my-zsh.sh' already exists - renaming to '$HOME/.oh-my-zsh.old' and installing oh-my-zsh"
+  mv "$HOME/.oh-my-zsh" "$HOME/.oh-my-zsh.old"
+fi
+sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
 
 echo "Installing applications..."
 echo "About to run '$DOTFILES_CHECKOUT/installation/all.sh'."
