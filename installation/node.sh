@@ -22,3 +22,10 @@ else
   NODE_VERSION=$(node --version)
   echo "$NODE_VERSION is already installed...skipping"
 fi
+
+if [ -d "$HOME/.nenv" ]; then
+  echo "'$HOME/.nenv' already exists...skipping"
+else
+  echo "installing nenv..."
+  git clone https://github.com/ryuone/nenv.git $HOME/.nenv  
+fi

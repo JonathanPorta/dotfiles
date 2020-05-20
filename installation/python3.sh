@@ -2,7 +2,7 @@
 set +e
 INSTALL_DIR=$(dirname "$0")
 source $INSTALL_DIR/include/lib.sh
-set -e
+# set -e
 
 echo "Installing python3 requirements."
 sudo dnf install -y python3 python3-devel python3-pip
@@ -15,7 +15,7 @@ else
 fi
 
 
-if ! (exists anaconda); then
+if ! (exists conda); then
   echo "Installing anaconda....Comment this out if you don't want none, honey."
   # # https://docs.anaconda.com/anaconda/install/linux/
   sudo dnf install -y libXcomposite libXcursor libXi libXtst libXrandr alsa-lib mesa-libEGL libXdamage mesa-libGL libXScrnSaver
