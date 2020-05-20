@@ -58,6 +58,16 @@ if [ -f "$HOME/.chruby" ]; then
 fi
 ln -s "$HOME/dotfiles/.chruby" "$HOME/.chruby"
 
+if [ -f "$HOME/.chruby" ]; then
+  echo "'$HOME/.chruby' already exists - renaming to '$HOME/.chruby.old' and linking to '$HOME/dotfiles/.chruby'."
+  mv "$HOME/.chruby" "$HOME/.chruby.old"
+fi
+
+if [ -f "$HOME/.oh-my-zsh/oh-my-zsh.sh" ]; then
+  echo "'$HOME/.oh-my-zsh/oh-my-zsh.sh' already exists - renaming to '$HOME/.oh-my-zsh.old' and installing oh-my-zsh"
+  mv "$HOME/.oh-my-zsh" "$HOME/.oh-my-zsh.old"
+fi
+sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
 
 echo "Installing applications..."
 echo "About to run '$DOTFILES_CHECKOUT/installation/all.sh'."
