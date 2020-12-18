@@ -36,6 +36,25 @@ alias gd='git diff'
 alias ga='git add --all'
 alias gpo='git push origin'
 
+# curl aliases
+alias c="curl -ivso /dev/null"
+alias cl="curl -Livso /dev/null"
+alias cb="curl -ivs"
+alias cbl="curl -Livs"
+alias cr="curl -ivso /dev/null --resolve"
+alias cl="curl -Livso /dev/null --resolve"
+alias cb="curl -ivs --resolve"
+alias cbl="curl -Livs --resolve"
+
+# curl: NOW WITH MORE TORBIT DEBUGGING
+alias ctb="curl -ivso /dev/null -H 'x-tb-debug:1'"
+alias cltb="curl -Livso /dev/null -H 'x-tb-debug:1'"
+alias cbtb="curl -ivs -H 'x-tb-debug:1'"
+alias cbltb="curl -Livs -H 'x-tb-debug:1'"
+alias crtb="curl -ivso /dev/null --resolve -H 'x-tb-debug:1'"
+alias cltb="curl -Livso /dev/null --resolve -H 'x-tb-debug:1'"
+alias cbtb="curl -ivs --resolve -H 'x-tb-debug:1'"
+alias cbltb="curl -Livs --resolve -H 'x-tb-debug:1'"
 
 # kube aliases
 alias pk="kubectl --namespace=production"
@@ -101,3 +120,6 @@ source $HOME/anaconda3/etc/profile.d/conda.sh
 
 # family cookie recipes
 source $HOME/dotfiles/.secrets
+
+# helpers
+source $HOME/dotfiles/util.sh

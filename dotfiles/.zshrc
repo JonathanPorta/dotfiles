@@ -1,5 +1,5 @@
 # Path to your oh-my-zsh installation.
-export ZSH=/home/portaj/.oh-my-zsh
+export ZSH=$HOME/.oh-my-zsh
 
 # Set name of the theme to load. Optionally, if you set this to "random"
 # it'll load a random theme each time that oh-my-zsh is loaded.
@@ -55,3 +55,4 @@ source $ZSH/oh-my-zsh.sh
 
 # Bring in my env stuff that isn't just zsh config
 source $HOME/dotfiles/.profile
+source $HOME/dotfiles/generate_gitconfig.sh
