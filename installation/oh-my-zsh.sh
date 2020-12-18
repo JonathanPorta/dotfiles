@@ -31,8 +31,13 @@ echo_green "Done."
 # change default shell
 echo_green "Setting zsh to default shell..."
 source $HOME/.zshrc
-chsh -s $(which zsh)
-sudo chsh -s $(which zsh) # Set root user to use ZSH.
+if [ -f "/bin/zsh" ]; then
+  chsh -s /bin/zsh
+  sudo chsh -s /bin/zsh
+else
+  chsh -s $(which zsh)
+  sudo chsh -s $(which zsh) # Set root user to use ZSH.
+fi
 source $HOME/.zshrc
 echo_green "Done."
 set -e
