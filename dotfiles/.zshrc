@@ -55,3 +55,4 @@ source $ZSH/oh-my-zsh.sh
 
 # Bring in my env stuff that isn't just zsh config
 source $HOME/dotfiles/.profile
+source $HOME/dotfiles/generate_gitconfig.sh

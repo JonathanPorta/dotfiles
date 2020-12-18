@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Determine the OS type
-OS='unknown'
+OS="echo 'Unknown OS...'; exit 1"
 UNAME_OUTPUT=`uname`
 if [[ "$UNAME_OUTPUT" == 'Linux' ]]; then
    OS='linux'
@@ -20,9 +20,9 @@ fi
 # export variables that the other scripts will need
 # we do this weird cd stuff in order to solve for weird ways this script might get called.
 # there may be a better way to handle this, but, this seems to work for now.
+# TODO: Consider making the username $USER, an arg, or hardcode to jonathanporta (matches gh)
 export INCLUDE_DIR=$(cd $(dirname "$0") && pwd)
 export INSTALLATION_SOURCE_DIR="$(cd "$INCLUDE_DIR" && cd ../ && pwd)"
-# TODO: Consider making the username $USER, an arg, or hardcode to jonathanporta (matches gh)
 export DEVEL_DIR="$HOME/devel/portaj"
 export DOTFILES_CHECKOUT="$DEVEL_DIR/dotfiles"
 export NOW=$(date -u +%s)
@@ -30,10 +30,10 @@ export PKG_INSTALLER=$PKG_INSTALLER
 export OS=$OS
 
 # The output of this file should look something like:
-# INCLUDE_DIR=/Users/vn50tv3/devel/portaj/dotfiles/installation/include
-# INSTALLATION_SOURCE_DIR=/Users/vn50tv3/devel/portaj/dotfiles/installation
-# DEVEL_DIR=/Users/vn50tv3/devel/portaj
-# DOTFILES_CHECKOUT=/Users/vn50tv3/devel/portaj/dotfiles
+# INCLUDE_DIR=/Users/portaj/devel/portaj/dotfiles/installation/include
+# INSTALLATION_SOURCE_DIR=/Users/portaj/devel/portaj/dotfiles/installation
+# DEVEL_DIR=/Users/portaj/devel/portaj
+# DOTFILES_CHECKOUT=/Users/portaj/devel/portaj/dotfiles
 # NOW=1602295068
 # OS=darwin
 # PKG_INSTALLER=brew install

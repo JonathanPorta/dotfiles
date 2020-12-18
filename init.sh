@@ -1,6 +1,7 @@
 #!/bin/bash
 set -e
 
+
 # Copy of source $HOME/devel/portaj/dotfiles/installation/lib/vars.sh in case it doesn't exist yet!
 export DEVEL="$HOME/devel/portaj"
 export DOTFILES_CHECKOUT="$DEVEL/dotfiles"
@@ -34,12 +35,6 @@ curl https://api.github.com/users/jonathanporta/keys | jq -r '.[] | .key' > $HOM
 echo "Updated '$HOME/.ssh/authorized_keys' to:"
 cat $HOME/.ssh/authorized_keys
 echo "Truncated and wrote $(cat $HOME/.ssh/authorized_keys | wc -l) keys to '$HOME/.ssh/authorized_keys'."
-echo "Done."
-
-echo "Installing oh-my-zsh..."
-sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
-export ZSH_CUSTOM="$HOME/.oh-my-zsh/custom"
-$DOTFILES_CHECKOUT/installation/oh-my-zsh.sh
 echo "Done."
 
 ## DO THIS AGAIN BECAUSE oh-my-zsh moves it.
