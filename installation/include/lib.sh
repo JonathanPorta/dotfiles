@@ -16,9 +16,9 @@ export exists(){
 # usage: pkg_installer pkg - runs pkg installer
 export pkg_install(){
   if [[ $OS == 'linux' ]]; then
-     sudo dnf install -y $1
+     sudo dnf install -y "$@"
   elif [[ $OS == 'darwin' ]]; then
-     brew install $1
+     brew install "$@"
   fi
 }
 

@@ -32,11 +32,13 @@ echo_green "Done."
 echo_green "Setting zsh to default shell..."
 source $HOME/.zshrc
 if [ -f "/bin/zsh" ]; then
-  chsh -s /bin/zsh
-  sudo chsh -s /bin/zsh
+  echo_green "Please enter the following path: /bin/zsh"
+  sudo lchsh -i $USER
+  sudo lchsh -i root
 else
-  chsh -s $(which zsh)
-  sudo chsh -s $(which zsh) # Set root user to use ZSH.
+  echo_green "Please enter the following path: $(which zsh)"
+  sudo lchsh -i $USER
+  sudo lchsh -i root
 fi
 source $HOME/.zshrc
 echo_green "Done."
