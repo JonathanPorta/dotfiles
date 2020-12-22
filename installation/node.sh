@@ -36,3 +36,17 @@ else
   git clone https://github.com/ryuone/nenv.git $HOME/.nenv
   echo_green "Done."
 fi
+
+# yarn
+if ! (exists "yarn"); then
+  echo_green "Installing yarn..."
+  if [[ $OS == 'linux' ]]; then
+    curl --silent --location https://dl.yarnpkg.com/rpm/yarn.repo | sudo tee /etc/yum.repos.d/yarn.repo
+    pkg_install yarn
+  elif [[ $OS == 'darwin' ]]; then
+    pkg_install yarn
+  fi
+  echo_green "Done."
+else
+  echo_cyan "yarn is already installed. Skipping..."
+fi
