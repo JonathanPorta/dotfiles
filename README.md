@@ -1,3 +1,5 @@
+#TODO: Cleanup notes and force push over all previous history to remove potentially unwanted info from leaking. :/
+
 # dotfiles
 
 My configuration files for some of my tools
