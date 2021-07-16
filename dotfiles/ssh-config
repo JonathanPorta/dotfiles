@@ -1,3 +1,10 @@
+Host aquinas* aurelius* local.porta.codes
+  User root
+  PubkeyAcceptedKeyTypes +ssh-rsa
+
 Host *.porta.codes *.plato.local *.local portaj-* socrates*
   User portaj
   ForwardAgent yes
+
+Host *.plato.local *.local
+  PubkeyAcceptedKeyTypes +ssh-rsa
