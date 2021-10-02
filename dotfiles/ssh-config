@@ -1,6 +1,7 @@
 Host aquinas* aurelius* local.porta.codes
   User root
   PubkeyAcceptedKeyTypes +ssh-rsa
+  ForwardAgent yes
 
 Host *.porta.codes *.plato.local *.local portaj-* socrates*
   User portaj
@@ -8,3 +9,16 @@ Host *.porta.codes *.plato.local *.local portaj-* socrates*
 
 Host *.plato.local *.local
   PubkeyAcceptedKeyTypes +ssh-rsa
+  ForwardAgent yes
+
+Host local.porta.codes
+  HostName local.porta.codes
+  StrictHostKeyChecking no
+  User root
+  ForwardAgent yes
+
+Host miner*
+  StrictHostKeyChecking no
+  User root
+  ProxyCommand ssh -q root@local.porta.codes nc %h %p
+  ForwardAgent yes
