@@ -23,6 +23,8 @@ if [ ! -n "$SSH_CLIENT" ]; then
   # only necessary if using pinentry in the tty (instead of GUI)
   echo UPDATESTARTUPTTY | gpg-connect-agent > /dev/null 2>&1
 fi
+ssh-add
+
 
 # uneff GPG Agent
 alias gpg_reboot='killall gpg-agent ; killall gpg-agent ; killall gpg-agent ; killall gpg-agent ; killall gpg-agent ; export SSH_AUTH_SOCK="$HOME/.gnupg/S.gpg-agent.ssh" ; gpgconf --launch gpg-agent'
@@ -36,6 +38,7 @@ alias gd='git diff'
 alias ga='git add --all'
 alias gpo='git push origin'
 
+
 # curl aliases
 alias c="curl -ivso /dev/null"
 alias cl="curl -Livso /dev/null"
@@ -45,6 +48,7 @@ alias cr="curl -ivso /dev/null --resolve"
 alias cl="curl -Livso /dev/null --resolve"
 alias cb="curl -ivs --resolve"
 alias cbl="curl -Livs --resolve"
+
 
 # curl: NOW WITH MORE TORBIT DEBUGGING
 alias ctb="curl -ivso /dev/null -H 'x-tb-debug:1'"
@@ -56,9 +60,20 @@ alias cltb="curl -Livso /dev/null --resolve -H 'x-tb-debug:1'"
 alias cbtb="curl -ivs --resolve -H 'x-tb-debug:1'"
 alias cbltb="curl -Livs --resolve -H 'x-tb-debug:1'"
 
-# kube aliases
-alias pk="kubectl --namespace=production"
-alias sk="kubectl --namespace=sandbox"  #--context gke_pantheon-dev_us-central1-b_sandbox-01
+
+# kubectl setup
+[[ $commands[kubectl] ]] && source <(kubectl completion zsh)
+export KUBECONFIG="/home/portaj/.kube/gemini-config"
+export PATH="$HOME/.kube:$PATH"
+
+
+# kubectl aliases
+alias kp="kubectl --namespace=production"
+alias ks="kubectl --namespace=sandbox"
+alias kc="kubectl --namespace=compute"
+alias k="kubectl --namespace=default"
+alias ki="kubectl --namespace=istio-system"
+alias kin="kubectl --namespace=istio-ingress"
 
 
 # googcloud
@@ -92,18 +107,22 @@ alias plz='foreman run bundle exec'
 alias destroy_the_child='docker rm $(docker ps -a -q) ; docker rmi $(docker images -q)'
 
 
+# Eff this shit. It hijacks curl by placing a curl binary in it's bin dir. What is this garbage?
 # anaconda (python residue)
-export PATH="$HOME/anaconda3/bin:$HOME/.local/bin:$PATH"
-source $HOME/anaconda3/etc/profile.d/conda.sh
+#export PATH="$HOME/anaconda3/bin:$HOME/.local/bin:$PATH"
+#source $HOME/anaconda3/etc/profile.d/conda.sh
+
 
 #TODO: Uncomment as needed
 ## special bullshitters
 # Chromium build tools
 #export PATH="$HOME/devel/depot_tools:$PATH"
 
+
 #TODO: Handle for multiple OS'
 # nvidia cuda libs
 #export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/extras/CUPTI/lib64
+
 
 #TODO: Handle for multiple OS'
 # imagemagick binary
@@ -120,6 +139,7 @@ source $HOME/anaconda3/etc/profile.d/conda.sh
 
 # family cookie recipes
 source $HOME/dotfiles/.secrets
+
 
 # helpers
 source $HOME/dotfiles/util.sh
