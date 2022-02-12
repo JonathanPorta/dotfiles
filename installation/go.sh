@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/usr/bin/zsh
 set +e
 INSTALL_DIR=$(dirname "$0")
 source $INSTALL_DIR/include/lib.sh

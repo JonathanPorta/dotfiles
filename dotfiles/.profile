@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/usr/bin/zsh
 
 # Update PATH for my homiedir bin
 export PATH="$HOME/bin:$PATH"
