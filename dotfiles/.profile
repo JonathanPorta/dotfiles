@@ -65,7 +65,7 @@ alias cbltb="curl -Livs --resolve -H 'x-tb-debug:1'"
 [[ $commands[kubectl] ]] && source <(kubectl completion zsh)
 export KUBECONFIG="/home/portaj/.kube/gemini-config"
 export PATH="$HOME/.kube:$PATH"
-
+istioctl completion zsh > "${fpath[1]}/_istioctl"
 
 # kubectl aliases
 alias kp="kubectl --namespace=production"
@@ -74,6 +74,8 @@ alias kc="kubectl --namespace=compute"
 alias k="kubectl --namespace=default"
 alias ki="kubectl --namespace=istio-system"
 alias kin="kubectl --namespace=istio-ingress"
+alias kdc="kubectl --namespace=democratic-csi"
+alias kmp="kubectl --namespace=mainline-production"
 
 
 # googcloud
@@ -95,6 +97,28 @@ export NVM_DIR="$HOME/.nvm"
 #node environment manager
 export PATH="$HOME/.nenv/bin:$PATH"
 eval "$(nenv init -)"
+
+# nvmrc - autoloader thingery
+autoload -U add-zsh-hook
+load-nvmrc() {
+  local node_version="$(nvm version)"
+  local nvmrc_path="$(nvm_find_nvmrc)"
+
+  if [ -n "$nvmrc_path" ]; then
+    local nvmrc_node_version=$(nvm version "$(cat "${nvmrc_path}")")
+
+    if [ "$nvmrc_node_version" = "N/A" ]; then
+      nvm install > /dev/null 2>&1
+    elif [ "$nvmrc_node_version" != "$node_version" ]; then
+      nvm use > /dev/null 2>&1
+    fi
+  elif [ "$node_version" != "$(nvm version default)" ]; then
+    # echo "Reverting to nvm default version"
+    nvm use default > /dev/null 2>&1
+  fi
+}
+add-zsh-hook chpwd load-nvmrc
+load-nvmrc
 
 
 
@@ -135,6 +159,12 @@ alias destroy_the_child='docker rm $(docker ps -a -q) ; docker rmi $(docker imag
 #export PATH="/Users/portaj/Library/Android/sdk/platform-tools:$PATH" # Mac OS
 #export PATH="$HOME/Android/Sdk/platform-tools:$PATH" # Linux
 #export PATH="$HOME/.fastlane/bin:/Users/portaj/Library/Android/sdk/ndk-bundle:$PATH"
+
+
+# kafka "cli"
+# export PATH="/opt/kafka_2.13-3.1.0/bin:$PATH"
+
+export AWS_PROFILE=portaj
 
 
 # family cookie recipes
