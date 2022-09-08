@@ -13,7 +13,7 @@ if ! (exists go); then
     echo_green "Done."
   else
     echo_green "Installing go1.15.6.darwin-amd64.pkg from golang.org..."
-    install_dmg "https://golang.org/dl/go1.15.6.darwin-amd64.pkg"
+    install_dmg "https://go.dev/dl/go1.18.darwin-amd64.pkg"
     echo_green "Done."
   fi
 else

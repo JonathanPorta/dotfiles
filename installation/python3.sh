@@ -7,7 +7,7 @@ set -e
 
 # Python3.8 and dev deps
 echo_green "Installing python3 requirements..."
-pkg_install python3.8 python3-devel python3-pip
+pkg_install python3.8 python3-devel python3-pip pipenv
 echo_green "Done."
 
 if ! (exists virtualenv); then

@@ -56,3 +56,7 @@ source $ZSH/oh-my-zsh.sh
 # Bring in my env stuff that isn't just zsh config
 source $HOME/dotfiles/.profile
 source $HOME/dotfiles/generate_gitconfig.sh
+#sledge:binary path
+export SLEDGE_BIN=/Users/vn50tv3/.sledge/bin
+export PATH="${PATH}:${SLEDGE_BIN}"
+export PATH="/usr/local/sbin:$PATH"

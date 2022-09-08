@@ -123,3 +123,6 @@ source $HOME/dotfiles/.secrets
 
 # helpers
 source $HOME/dotfiles/util.sh
+
+export SLEDGE_BIN=/Users/vn50tv3/.sledge/bin
+export PATH="${PATH}:${SLEDGE_BIN}"

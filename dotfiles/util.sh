@@ -28,3 +28,8 @@ function externaldns () {
 function curlr () {
   D=$1 V=$2 H=$3 && curl -vso /dev/null --resolve $D:443:$V -H 'x-tb-debug' "https://$D$H"
 }
+
+alias qa='echo 10.65.42.$(python -S -c "import random; print(random.randrange(195,199))")'
+alias cdc='echo 10.39.225.$(python -S -c "import random; print(random.randrange(6,20))")'
+alias dfw='echo 10.47.72.$(python -S -c "import random; print(random.randrange(6,20))")'
+alias lssan="$HOME/devel/w/d/lssan/lssan.sh"
