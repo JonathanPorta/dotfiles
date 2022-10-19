@@ -86,7 +86,7 @@ if [ -f "$HOME/google-cloud-sdk/completion.zsh.inc" ]; then source "$HOME/google
 #go - "golang" when googling.
 #export GOROOT=$HOME/go wtf, who set this? -- Leaving this as a reminder of what not to do.
 export GOPATH=$HOME/go
-export PATH="$GOPATH/bin:$PATH"
+export PATH="$GOPATH/bin:$PATH:/usr/local/go/bin:$PATH"
 
 
 # nvm (node.js crap)
@@ -121,14 +121,13 @@ add-zsh-hook chpwd load-nvmrc
 load-nvmrc
 
 
-
 # Ruby Shite
 source $HOME/.chruby
 alias plz='foreman run bundle exec'
 
 
 # Docker poo
-alias destroy_the_child='docker rm $(docker ps -a -q) ; docker rmi $(docker images -q)'
+alias destroy_the_child='docker rm $(docker ps -a -q) ; docker rmi -f $(docker images -q)'
 
 
 # Eff this shit. It hijacks curl by placing a curl binary in it's bin dir. What is this garbage?
