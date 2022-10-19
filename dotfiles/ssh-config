@@ -1,3 +1,12 @@
+Host portaj-w*
+  User vn50tv3
+
+Host miner*
+  StrictHostKeyChecking no
+  User root
+  ProxyCommand ssh -q root@local.porta.codes nc %h %p
+  ForwardAgent yes
+
 Host aquinas* aurelius* local.porta.codes
   User root
   PubkeyAcceptedKeyTypes +ssh-rsa
@@ -15,10 +24,4 @@ Host local.porta.codes
   HostName local.porta.codes
   StrictHostKeyChecking no
   User root
-  ForwardAgent yes
-
-Host miner*
-  StrictHostKeyChecking no
-  User root
-  ProxyCommand ssh -q root@local.porta.codes nc %h %p
   ForwardAgent yes
