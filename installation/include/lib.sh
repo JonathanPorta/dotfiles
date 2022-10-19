@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/usr/bin/zsh
 
 # Figure out best way to include this in all scripts, even when we don't know the path.
 source $(cd $(dirname "$0") && pwd)/vars.sh
