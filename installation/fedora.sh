@@ -10,7 +10,7 @@ pkg_install https://download1.rpmfusion.org/free/fedora/rpmfusion-free-release-$
 echo_green "Done."
 
 echo_green "Installing Fedora utilities..."
-pkg_install gnome-tweak-tool dolphin smb4k dnf-plugins-core
+pkg_install gnome-tweak-tool dolphin smb4k dnf-plugins-core git-subtree
 echo_green "Done."
 
 echo_green "Installing Fedy..."
