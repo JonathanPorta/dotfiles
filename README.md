@@ -7,7 +7,11 @@ My configuration files for some of my tools
 Run this command: (_sigh_....I know)
 
 ```
+# All Dotfiles
 curl https://raw.githubusercontent.com/JonathanPorta/dotfiles/master/init.sh | bash
+
+# Only SSH keys and SSH daemon
+curl https://raw.githubusercontent.com/JonathanPorta/dotfiles/master/hello-world.sh | bash
 ```
 
 # TODO
