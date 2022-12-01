@@ -1,7 +1,6 @@
 #!/bin/bash
 set -e
 
-
 GH_USERNAME='JonathanPorta'
 
 echo "Ensure GitHub keys are synced to local authorized_keys..."
