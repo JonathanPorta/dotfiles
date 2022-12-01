@@ -50,9 +50,9 @@ HIST_STAMPS="yyyy-mm-dd"
 # Custom plugins may be added to ~/.oh-my-zsh/custom/plugins/
 # Example format: plugins=(rails git textmate ruby lighthouse)
 # Add wisely, as too many plugins slow down shell startup.
-source $ZSH/plugins/kube-ps1/kube-ps1.plugin.zsh
-PROMPT='$(kube_ps1)'$PROMPT
-plugins=(git zsh-completions pipenv)
+# source $ZSH/plugins/kube-ps1/kube-ps1.plugin.zsh
+# PROMPT='$(kube_ps1)'$PROMPT
+plugins=(zsh-completions pipenv)
 # plugins=()
 # RPS1='$(kubectx_prompt_info)'
 
@@ -60,10 +60,16 @@ plugins=(git zsh-completions pipenv)
 source $ZSH/oh-my-zsh.sh
 
 # Bring in my env stuff that isn't just zsh config
-source $HOME/dotfiles/.profile
-source $HOME/dotfiles/generate_gitconfig.sh
+# TODO: Moved to .zshenv but need to break up these files into stuff that can be loaded when needed vs not.
+# source $HOME/dotfiles/.profile
+
+# Moved to .profile
+# source $HOME/dotfiles/generate_gitconfig.sh
 
 autoload -U +X bashcompinit && bashcompinit
 autoload -Uz compinit && compinit
 complete -o nospace -C /usr/bin/terraform terraform
 complete -C '/usr/local/bin/aws_completer' aws
+
+# TODO: Re-enable once they fix this bug: https://github.com/spaceship-prompt/spaceship-prompt/issues/1207
+SPACESHIP_PROMPT_ASYNC=false
