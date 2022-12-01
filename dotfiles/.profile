@@ -36,6 +36,7 @@ alias gpr='git push origin $(git rev-parse --abbrev-ref HEAD) && hub pull-reques
 alias gs='git status'
 alias gd='git diff'
 alias ga='git add --all'
+alias gc='git commit -v'
 alias gpo='git push origin'
 
 
@@ -65,7 +66,7 @@ alias cbltb="curl -Livs --resolve -H 'x-tb-debug:1'"
 [[ $commands[kubectl] ]] && source <(kubectl completion zsh)
 export KUBECONFIG="/home/portaj/.kube/gemini-config"
 export PATH="$HOME/.kube:$PATH"
-istioctl completion zsh > "${fpath[1]}/_istioctl"
+[[ $commands[istioctl] ]] && istioctl completion zsh > "${fpath[1]}/_istioctl"
 
 # kubectl aliases
 alias kp="kubectl --namespace=production"
@@ -172,3 +173,6 @@ source $HOME/dotfiles/.secrets
 
 # helpers
 source $HOME/dotfiles/util.sh
+
+# Git Config
+source $HOME/dotfiles/generate_gitconfig.sh
