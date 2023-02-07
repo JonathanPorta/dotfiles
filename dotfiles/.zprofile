@@ -1,3 +1,5 @@
+# https://unix.stackexchange.com/a/71258/103099
+
 # set PATH so it includes user's private bin if it exists
 if [ -d "$HOME/bin" ] ; then
     PATH="$HOME/bin:$PATH"

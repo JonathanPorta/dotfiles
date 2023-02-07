@@ -1,3 +1,5 @@
+# https://unix.stackexchange.com/a/71258/103099
+
 # Path to your oh-my-zsh installation.
 export ZSH=$HOME/.oh-my-zsh
 
@@ -73,3 +75,8 @@ complete -C '/usr/local/bin/aws_completer' aws
 
 # TODO: Re-enable once they fix this bug: https://github.com/spaceship-prompt/spaceship-prompt/issues/1207
 SPACESHIP_PROMPT_ASYNC=false
+
+
+if [ -f "$HOME/dotfiles/.profile" ]; then
+  . $HOME/dotfiles/.profile
+fi

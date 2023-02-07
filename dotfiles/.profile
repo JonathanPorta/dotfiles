@@ -128,7 +128,7 @@ alias plz='foreman run bundle exec'
 
 
 # Docker poo
-alias destroy_the_child='docker rm $(docker ps -a -q) ; docker rmi -f $(docker images -q)'
+alias destroy_the_child='docker rm $(docker ps -a -q) ; docker rmi -f $(docker images -q) ; docker volume ls -qf dangling=true | xargs docker volume rm'
 
 
 # Eff this shit. It hijacks curl by placing a curl binary in it's bin dir. What is this garbage?
