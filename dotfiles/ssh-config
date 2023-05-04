@@ -1,4 +1,4 @@
-Host portaj-w*
+Host portaj-w
   User vn50tv3
 
 Host miner*
@@ -7,7 +7,7 @@ Host miner*
   ProxyCommand ssh -q root@local.porta.codes nc %h %p
   ForwardAgent yes
 
-Host aquinas* aurelius* local.porta.codes
+Host archimedes* aquinas* aurelius* local.porta.codes
   User root
   PubkeyAcceptedKeyTypes +ssh-rsa
   ForwardAgent yes
