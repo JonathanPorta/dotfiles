@@ -14,17 +14,24 @@ fi
 
 # GPG Agentry
 if [ ! -n "$SSH_CLIENT" ]; then
-  eval $(gpg-agent --daemon --enable-ssh-support --sh)
-  gpgconf --launch gpg-agent
-  GPG_TTY=$(tty); export GPG_TTY;
   unset SSH_AGENT_PID
   if [ "${gnupg_SSH_AUTH_SOCK_by:-0}" -ne $$ ]; then
     export SSH_AUTH_SOCK="$(gpgconf --list-dirs agent-ssh-socket)"
   fi
-  # only necessary if using pinentry in the tty (instead of GUI)
-  # echo UPDATESTARTUPTTY | gpg-connect-agent > /dev/null 2>&1
+  export GPG_TTY=$(tty)
+  gpg-connect-agent updatestartuptty /bye >/dev/null
+  ssh-add
+  # eval $(gpg-agent --daemon --enable-ssh-support --sh)
+  # gpgconf --launch gpg-agent
+  # GPG_TTY=$(tty); export GPG_TTY;
+  # unset SSH_AGENT_PID
+  # if [ "${gnupg_SSH_AUTH_SOCK_by:-0}" -ne $$ ]; then
+  #   export SSH_AUTH_SOCK="$(gpgconf --list-dirs agent-ssh-socket)"
+  # fi
+  # # only necessary if using pinentry in the tty (instead of GUI)
+  # # echo UPDATESTARTUPTTY | gpg-connect-agent > /dev/null 2>&1
 fi
-ssh-add
+# ssh-add
 
 
 # uneff GPG Agent
