@@ -22,6 +22,7 @@ cat <<EOF > $HOME/.gitconfig
 
 [push]
   default = upstream
+  autoSetupRemote = true
 
 [alias]
   lg = log --color --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr)%C(bold blue)<%an>%Creset' --abbrev-commit
