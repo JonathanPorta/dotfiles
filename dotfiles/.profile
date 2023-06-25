@@ -45,7 +45,8 @@ alias gs='git status'
 alias gd='git diff'
 alias ga='git add --all'
 alias gc='git commit -v'
-alias gpo='git push origin'
+alias gp='git push origin'
+alias gpf='git push origin --force-with-lease'
 
 
 # curl aliases
