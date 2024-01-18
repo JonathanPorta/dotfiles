@@ -1,3 +1,4 @@
+# zmodload zsh/zprof
 # https://unix.stackexchange.com/a/71258/103099
 
 # set PATH so it includes user's private bin if it exists
