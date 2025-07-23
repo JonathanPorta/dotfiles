@@ -1,4 +1,4 @@
-#!/usr/bin/zsh
+#!/usr/bin/env zsh
 set -e
 
 source $(cd $(dirname "$0") && pwd)/installation/include/lib.sh

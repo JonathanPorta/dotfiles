@@ -1,4 +1,4 @@
-#!/usr/bin/zsh
+#!/usr/bin/env zsh
 
 set +e
 source $(cd $(dirname "$0") && pwd)/include/lib.sh
@@ -9,9 +9,14 @@ source $(cd $(dirname "$0") && pwd)/include/lib.sh
 echo_cyan "From here on, we expect to be running in ZSH not BASH. If errors happen, verify that this is running in ZSH and not BASH."
 $INSTALLATION_SOURCE_DIR/util.sh
 $INSTALLATION_SOURCE_DIR/oh-my-zsh.sh
-$INSTALLATION_SOURCE_DIR/docker.sh
+
+#TODO: Move to rancher or the other one
+echo_cyan "Skipping docker..."
+# $INSTALLATION_SOURCE_DIR/docker.sh
+
 $INSTALLATION_SOURCE_DIR/vim.sh
-$INSTALLATION_SOURCE_DIR/atom.sh
+echo_cyan "Skipping atom..."
+# $INSTALLATION_SOURCE_DIR/atom.sh
 
 #TODO: Make OS specific utility file or something.
 if [[ $OS == 'linux' ]]; then
