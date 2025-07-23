@@ -1,7 +1,16 @@
 #!/usr/bin/env zsh
 
+# Set OS variable for consistency with installation scripts
+UNAME_OUTPUT=`uname`
+if [[ "$UNAME_OUTPUT" == 'Linux' ]]; then
+   export OS='linux'
+elif [[ "$UNAME_OUTPUT" == 'Darwin' ]]; then
+   export OS='darwin'
+fi
+
+
 # source homebrew shell environment if on macOS
-if [[ $OS == 'darwin' ]]; then
+if [[ "$OS" == "darwin" ]]; then
   eval "$(/opt/homebrew/bin/brew shellenv)"
 fi
 
@@ -49,7 +58,8 @@ alias gpg_reboot='gpgconf --kill gpg-agent; killall gpg-agent ; killall gpg-agen
 
 # gh cli replacements
 alias woot='gh screensaver -s fireworks -- --message="w00t!"'
-alias gpr='git push origin $(git rev-parse --abbrev-ref HEAD) && gh pr create --web'
+# alias gpr='git push origin $(git rev-parse --abbrev-ref HEAD) && gh pr create --web'
+alias gpr='git push origin $(git rev-parse --abbrev-ref HEAD) && gh pr create --editor'
 
 
 # git aliases
