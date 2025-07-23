@@ -15,6 +15,16 @@ if [[ $OS == 'linux' ]]; then
   fi
 echo_green "Done."
 
+# uv - yet-another python package manager
+if ! (exists uv); then
+  echo_green "Installing uv..."
+  curl -LsSf https://astral.sh/uv/install.sh | sh
+  echo_green "Done."
+else
+  echo_cyan "uv is already installed. Skipping..."
+fi
+
+
 if ! (exists virtualenv); then
   echo_green "Installing virtualenv..."
   pip3 install --user virtualenv
