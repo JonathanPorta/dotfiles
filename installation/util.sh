@@ -1,4 +1,5 @@
-#!/usr/bin/zsh
+#!/usr/bin/env zsh
+
 set +e
 INSTALL_DIR=$(dirname "$0")
 source $INSTALLATION_SOURCE_DIR/include/lib.sh
@@ -7,16 +8,35 @@ source $INSTALLATION_SOURCE_DIR/include/lib.sh
 
 # basic stuff
 echo_green "Installing basic utilities..."
-# TODO: Update for multi-os
-sudo dnf remove -y vim-minimal
+if [[ $OS == 'linux' ]]; then
+  echo_green "Removing vim-minimal for Fedora..."
+  sudo dnf remove -y vim-minimal
+  echo_green "Done."
+fi
 pkg_install vim
-pkg_install git wget curl zsh tmux tmate jq hub neovim python3-neovim telnet util-linux-user
+pkg_install git wget curl zsh tmux tmate jq hub neovim telnet util-linux-user #python3-neovim
 echo_green "Done."
 
 #hub
-echo_green "Installing hub..."
-pkg_install hub
-echo_green "Done."
+# echo_green "Installing hub..."
+# pkg_install hub
+# echo_green "Done."
+
+# gh cli
+if [[ $OS == 'linux' ]]; then
+  echo_green "Installing gh cli for fedora..."
+  sudo dnf install dnf5-plugins
+  sudo dnf config-manager addrepo --from-repofile=https://cli.github.com/packages/rpm/gh-cli.repo
+  sudo dnf install gh --repo gh-cli
+  echo_green "Done."
+elif [[ $OS == 'darwin' ]]; then
+  echo_green "Installing gh cli for darwin..."
+  pkg_install gh
+  echo_green "Done."
+fi
+
+# gh cli extensions
+gh extension install vilmibm/gh-screensaver
 
 #gpg
 echo_green "Installing gpg stuffs..."

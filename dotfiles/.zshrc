@@ -1,4 +1,5 @@
 # https://unix.stackexchange.com/a/71258/103099
+# https://stackoverflow.com/a/18187389
 
 # Path to your oh-my-zsh installation.
 export ZSH=$HOME/.oh-my-zsh
