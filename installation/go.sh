@@ -1,4 +1,5 @@
-#!/usr/bin/zsh
+#!/usr/bin/env zsh
+
 set +e
 INSTALL_DIR=$(dirname "$0")
 source $INSTALL_DIR/include/lib.sh
@@ -12,8 +13,8 @@ if ! (exists go); then
     pkg_install golang
     echo_green "Done."
   else
-    echo_green "Installing go1.15.6.darwin-amd64.pkg from golang.org..."
-    install_dmg "https://golang.org/dl/go1.15.6.darwin-amd64.pkg"
+    echo_green "Installing go1.23.6.darwin-amd64.pkg from golang.org..."
+    install_dmg "https://golang.org/dl/go1.23.6.darwin-amd64.pkg"
     echo_green "Done."
   fi
 else

@@ -1,11 +1,2 @@
 # https://unix.stackexchange.com/a/71258/103099
-
-# set PATH so it includes user's private bin if it exists
-if [ -d "$HOME/bin" ] ; then
-    PATH="$HOME/bin:$PATH"
-fi
-
-# # include .zshrc if it exists
-# if [ -f "$HOME/.zshrc" ]; then
-#   . "$HOME/.zshrc"
-# fi
+# https://stackoverflow.com/a/18187389

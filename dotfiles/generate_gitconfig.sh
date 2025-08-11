@@ -1,4 +1,5 @@
-#!/bin/bash
+#!/usr/bin/env bash
+
 # copy-pasta'd from https://stackoverflow.com/a/42457815/555017
 SCRIPT_GENERATOR_PATH="$(cd $(dirname "$0") && pwd)/$(basename "$0")"
 echo "Generating $HOME/.gitconfig using $SCRIPT_GENERATOR_PATH..."

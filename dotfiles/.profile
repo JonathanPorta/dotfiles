@@ -1,7 +1,18 @@
-#!/usr/bin/zsh
+#!/usr/bin/env zsh
 
-# Update PATH for my homiedir bin
-export PATH="$HOME/bin:$PATH"
+# Set OS variable for consistency with installation scripts
+UNAME_OUTPUT=`uname`
+if [[ "$UNAME_OUTPUT" == 'Linux' ]]; then
+   export OS='linux'
+elif [[ "$UNAME_OUTPUT" == 'Darwin' ]]; then
+   export OS='darwin'
+fi
+
+
+# source homebrew shell environment if on macOS
+if [[ "$OS" == "darwin" ]]; then
+  eval "$(/opt/homebrew/bin/brew shellenv)"
+fi
 
 
 # Preferred editor for local and remote sessions
@@ -12,35 +23,46 @@ else
 fi
 
 
-# # GPG Agentry
-# if [ ! -n "$SSH_CLIENT" ]; then
-#   unset SSH_AGENT_PID
-#   if [ "${gnupg_SSH_AUTH_SOCK_by:-0}" -ne $$ ]; then
-#     export SSH_AUTH_SOCK="$(gpgconf --list-dirs agent-ssh-socket)"
-#   fi
-#   export GPG_TTY=$(tty)
-#   gpg-connect-agent updatestartuptty /bye >/dev/null
-#   ssh-add
-#   # eval $(gpg-agent --daemon --enable-ssh-support --sh)
-#   # gpgconf --launch gpg-agent
-#   # GPG_TTY=$(tty); export GPG_TTY;
-#   # unset SSH_AGENT_PID
-#   # if [ "${gnupg_SSH_AUTH_SOCK_by:-0}" -ne $$ ]; then
-#   #   export SSH_AUTH_SOCK="$(gpgconf --list-dirs agent-ssh-socket)"
-#   # fi
-#   # # only necessary if using pinentry in the tty (instead of GUI)
-#   # # echo UPDATESTARTUPTTY | gpg-connect-agent > /dev/null 2>&1
-# fi
-# # ssh-add
+# GPG Agentry
+if [ ! -n "$SSH_CLIENT" ]; then
+  export GPG_TTY=$(tty)
+
+  # Check if gpg-agent is running and start it if it isn't
+  gpg-connect-agent /bye || gpg-agent --daemon --enable-ssh-support
+
+  export SSH_AUTH_SOCK=$(gpgconf --list-dirs agent-ssh-socket)
+  gpg-connect-agent updatestartuptty /bye >/dev/null
+fi
 
 
 # uneff GPG Agent
-alias gpg_reboot='killall gpg-agent ; killall gpg-agent ; killall gpg-agent ; killall gpg-agent ; killall gpg-agent ; export SSH_AUTH_SOCK="$HOME/.gnupg/S.gpg-agent.ssh" ; gpgconf --launch gpg-agent'
+alias gpg_reboot='gpgconf --kill gpg-agent; killall gpg-agent ; killall gpg-agent ; killall gpg-agent ; killall gpg-agent ; killall gpg-agent ; export SSH_AUTH_SOCK="$HOME/.gnupg/S.gpg-agent.ssh" ; gpgconf --launch gpg-agent; echo UPDATESTARTUPTTY | gpg-connect-agent'
 
+
+# The following should be handled further down
+# export NVM_DIR="$HOME/.nvm"
+# [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
+# [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+
+
+# The following are handled better further down. We don't really want shit in our Downloads folder, riiiiight?
+# The next line updates PATH for the Google Cloud SDK.
+# if [ -f '/Users/portaj/Downloads/google-cloud-sdk/path.zsh.inc' ]; then . '/Users/portaj/Downloads/google-cloud-sdk/path.zsh.inc'; fi
+# The next line enables shell command completion for gcloud.
+# if [ -f '/Users/portaj/Downloads/google-cloud-sdk/completion.zsh.inc' ]; then . '/Users/portaj/Downloads/google-cloud-sdk/completion.zsh.inc'; fi
 
 # hub git alias
-eval "$(hub alias -s)"
-alias gpr='git push origin $(git rev-parse --abbrev-ref HEAD) && hub pull-request'
+# eval "$(hub alias -s)"
+# alias gpr='git push origin $(git rev-parse --abbrev-ref HEAD) && hub pull-request'
+
+
+# gh cli replacements
+alias woot='gh screensaver -s fireworks -- --message="w00t!"'
+# alias gpr='git push origin $(git rev-parse --abbrev-ref HEAD) && gh pr create --web'
+alias gpr='git push origin $(git rev-parse --abbrev-ref HEAD) && gh pr create --editor'
+
+
+# git aliases
 alias gs='git status'
 alias gd='git diff'
 alias ga='git add --all'
@@ -77,6 +99,7 @@ export KUBECONFIG="/home/portaj/.kube/gemini-config"
 export PATH="$HOME/.kube:$PATH"
 [[ $commands[istioctl] ]] && istioctl completion zsh > "${fpath[1]}/_istioctl"
 
+
 # kubectl aliases
 alias kp="kubectl --namespace=production"
 alias ks="kubectl --namespace=sandbox"
@@ -106,9 +129,11 @@ export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
 
+
 #node environment manager
 export PATH="$HOME/.nenv/bin:$PATH"
 eval "$(nenv init -)"
+
 
 # nvmrc - autoloader thingery
 autoload -U add-zsh-hook
@@ -185,6 +210,7 @@ source $HOME/dotfiles/.secrets
 
 # helpers
 source $HOME/dotfiles/util.sh
+
 
 # Git Config
 source $HOME/dotfiles/generate_gitconfig.sh

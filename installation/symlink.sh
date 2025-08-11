@@ -1,4 +1,5 @@
-#!/bin/bash
+#!/usr/bin/env bash
+
 set -e
 source $(cd $(dirname "$0") && pwd)/include/vars.sh
 
