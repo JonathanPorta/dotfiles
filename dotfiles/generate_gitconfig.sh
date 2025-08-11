@@ -9,11 +9,12 @@ cat <<EOF > $HOME/.gitconfig
 # Edit that file, not this one!
 
 [user]
-	name = Jonathan Porta
-	email = jonathan@jonathanporta.com
+  name = Jonathan Porta
+  email = jonathan@jonathanporta.com
 
 [core]
   excludesfile = $HOME/.gitignore_global
+  pager = less -F -X
 
 [help]
   autocorrect = 1
@@ -35,10 +36,10 @@ cat <<EOF > $HOME/.gitconfig
   ss = status -sb
   p = push
   clean-branches = !sh -c 'git branch --merged master | grep -v master | xargs -n 1 git branch -d'
-	up = pull --rebase --autostash
+  up = pull --rebase --autostash
 
 [branch]
-	autosetuprebase = always
+  autosetuprebase = always
 
 [color "branch"]
   current = yellow reverse
@@ -58,23 +59,28 @@ cat <<EOF > $HOME/.gitconfig
   untracked = cyan
 
 [filter "lfs"]
-	clean = git-lfs clean -- %f
-	smudge = git-lfs smudge -- %f
-	required = true
-	process = git-lfs filter-process
+  clean = git-lfs clean -- %f
+  smudge = git-lfs smudge -- %f
+  required = true
+  process = git-lfs filter-process
 
 [github]
-	user = jonathanporta
+  user = jonathanporta
 
 [gpg]
-	program = gpg
+  program = gpg2
 
 [url "ssh://git@github.com/"]
-	username = jonathanporta
-	insteadOf = https://github.com/
+  username = jonathanporta
+  insteadOf = https://github.com/
+
+#[url "https://github.com/"]
+#  username = jonathanporta
+#  insteadOf = ssh://git@github.com/
+#  insteadOf = git@github.com:
 
 [url "ssh://git@$WORK_GH_HOSTNAME/"]
-	username = $WORK_GH_USERNAME
-	insteadOf = https://$WORK_GH_HOSTNAME/
+  username = $WORK_GH_USERNAME
+  insteadOf = https://$WORK_GH_HOSTNAME/
 
 EOF

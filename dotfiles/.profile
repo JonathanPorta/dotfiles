@@ -39,18 +39,6 @@ fi
 alias gpg_reboot='gpgconf --kill gpg-agent; killall gpg-agent ; killall gpg-agent ; killall gpg-agent ; killall gpg-agent ; killall gpg-agent ; export SSH_AUTH_SOCK="$HOME/.gnupg/S.gpg-agent.ssh" ; gpgconf --launch gpg-agent; echo UPDATESTARTUPTTY | gpg-connect-agent'
 
 
-# The following should be handled further down
-# export NVM_DIR="$HOME/.nvm"
-# [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
-# [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
-
-
-# The following are handled better further down. We don't really want shit in our Downloads folder, riiiiight?
-# The next line updates PATH for the Google Cloud SDK.
-# if [ -f '/Users/portaj/Downloads/google-cloud-sdk/path.zsh.inc' ]; then . '/Users/portaj/Downloads/google-cloud-sdk/path.zsh.inc'; fi
-# The next line enables shell command completion for gcloud.
-# if [ -f '/Users/portaj/Downloads/google-cloud-sdk/completion.zsh.inc' ]; then . '/Users/portaj/Downloads/google-cloud-sdk/completion.zsh.inc'; fi
-
 # hub git alias
 # eval "$(hub alias -s)"
 # alias gpr='git push origin $(git rev-parse --abbrev-ref HEAD) && hub pull-request'
@@ -164,6 +152,9 @@ alias plz='foreman run bundle exec'
 # Docker poo
 alias destroy_the_child='df -h ; docker system df ; docker rm $(docker ps -a -q) ; docker rmi -f $(docker images -q) ; docker volume ls -qf dangling=true | xargs docker volume rm ; docker system prune -af ; docker system prune -af --volumes ; docker system df ; df -h'
 
+# Rancher Desktop (Replacement for Docker Desktop)
+export PATH="$HOME/.rd/bin:~/.rd/bin:$PATH"
+
 
 # Eff this shit. It hijacks curl by placing a curl binary in it's bin dir. What is this garbage?
 # anaconda (python residue)
@@ -194,16 +185,14 @@ alias destroy_the_child='df -h ; docker system df ; docker rm $(docker ps -a -q)
 #export PATH="$HOME/Android/Sdk/platform-tools:$PATH" # Linux
 #export PATH="$HOME/.fastlane/bin:/Users/portaj/Library/Android/sdk/ndk-bundle:$PATH"
 
+# openjdk nonsense
+# export PATH="/opt/homebrew/opt/openjdk@17/bin:$PATH"
 
 # kafka "cli"
 # export PATH="/opt/kafka_2.13-3.1.0/bin:$PATH"
 
-export AWS_PROFILE=portaj
-
-
 # family cookie recipes
 source $HOME/dotfiles/.secrets
-
 
 # helpers
 source $HOME/dotfiles/util.sh
