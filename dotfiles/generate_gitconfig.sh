@@ -70,14 +70,14 @@ cat <<EOF > $HOME/.gitconfig
 [gpg]
   program = gpg2
 
-# [url "ssh://git@github.com/"]
-#   username = jonathanporta
-#   insteadOf = https://github.com/
-
-[url "https://github.com/"]
+[url "ssh://git@github.com/"]
   username = jonathanporta
-  insteadOf = ssh://git@github.com/
-  insteadOf = git@github.com:
+  insteadOf = https://github.com/
+
+#[url "https://github.com/"]
+#  username = jonathanporta
+#  insteadOf = ssh://git@github.com/
+#  insteadOf = git@github.com:
 
 [url "ssh://git@$WORK_GH_HOSTNAME/"]
   username = $WORK_GH_USERNAME
