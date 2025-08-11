@@ -39,18 +39,6 @@ fi
 alias gpg_reboot='gpgconf --kill gpg-agent; killall gpg-agent ; killall gpg-agent ; killall gpg-agent ; killall gpg-agent ; killall gpg-agent ; export SSH_AUTH_SOCK="$HOME/.gnupg/S.gpg-agent.ssh" ; gpgconf --launch gpg-agent; echo UPDATESTARTUPTTY | gpg-connect-agent'
 
 
-# The following should be handled further down
-# export NVM_DIR="$HOME/.nvm"
-# [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
-# [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
-
-
-# The following are handled better further down. We don't really want shit in our Downloads folder, riiiiight?
-# The next line updates PATH for the Google Cloud SDK.
-# if [ -f '/Users/portaj/Downloads/google-cloud-sdk/path.zsh.inc' ]; then . '/Users/portaj/Downloads/google-cloud-sdk/path.zsh.inc'; fi
-# The next line enables shell command completion for gcloud.
-# if [ -f '/Users/portaj/Downloads/google-cloud-sdk/completion.zsh.inc' ]; then . '/Users/portaj/Downloads/google-cloud-sdk/completion.zsh.inc'; fi
-
 # hub git alias
 # eval "$(hub alias -s)"
 # alias gpr='git push origin $(git rev-parse --abbrev-ref HEAD) && hub pull-request'
@@ -114,8 +102,6 @@ alias kmp="kubectl --namespace=mainline-production"
 # googcloud
 if [ -f "$HOME/google-cloud-sdk/path.zsh.inc" ]; then source "$HOME/google-cloud-sdk/path.zsh.inc"; fi
 if [ -f "$HOME/google-cloud-sdk/completion.zsh.inc" ]; then source "$HOME/google-cloud-sdk/completion.zsh.inc"; fi
-if [ -f '/Users/w0p01l6/Downloads/google-cloud-sdk/path.zsh.inc' ]; then . '/Users/w0p01l6/Downloads/google-cloud-sdk/path.zsh.inc'; fi
-if [ -f '/Users/w0p01l6/Downloads/google-cloud-sdk/completion.zsh.inc' ]; then . '/Users/w0p01l6/Downloads/google-cloud-sdk/completion.zsh.inc'; fi
 
 
 #go - "golang" when googling.
