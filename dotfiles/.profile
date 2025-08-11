@@ -12,26 +12,26 @@ else
 fi
 
 
-# GPG Agentry
-if [ ! -n "$SSH_CLIENT" ]; then
-  unset SSH_AGENT_PID
-  if [ "${gnupg_SSH_AUTH_SOCK_by:-0}" -ne $$ ]; then
-    export SSH_AUTH_SOCK="$(gpgconf --list-dirs agent-ssh-socket)"
-  fi
-  export GPG_TTY=$(tty)
-  gpg-connect-agent updatestartuptty /bye >/dev/null
-  ssh-add
-  # eval $(gpg-agent --daemon --enable-ssh-support --sh)
-  # gpgconf --launch gpg-agent
-  # GPG_TTY=$(tty); export GPG_TTY;
-  # unset SSH_AGENT_PID
-  # if [ "${gnupg_SSH_AUTH_SOCK_by:-0}" -ne $$ ]; then
-  #   export SSH_AUTH_SOCK="$(gpgconf --list-dirs agent-ssh-socket)"
-  # fi
-  # # only necessary if using pinentry in the tty (instead of GUI)
-  # # echo UPDATESTARTUPTTY | gpg-connect-agent > /dev/null 2>&1
-fi
-# ssh-add
+# # GPG Agentry
+# if [ ! -n "$SSH_CLIENT" ]; then
+#   unset SSH_AGENT_PID
+#   if [ "${gnupg_SSH_AUTH_SOCK_by:-0}" -ne $$ ]; then
+#     export SSH_AUTH_SOCK="$(gpgconf --list-dirs agent-ssh-socket)"
+#   fi
+#   export GPG_TTY=$(tty)
+#   gpg-connect-agent updatestartuptty /bye >/dev/null
+#   ssh-add
+#   # eval $(gpg-agent --daemon --enable-ssh-support --sh)
+#   # gpgconf --launch gpg-agent
+#   # GPG_TTY=$(tty); export GPG_TTY;
+#   # unset SSH_AGENT_PID
+#   # if [ "${gnupg_SSH_AUTH_SOCK_by:-0}" -ne $$ ]; then
+#   #   export SSH_AUTH_SOCK="$(gpgconf --list-dirs agent-ssh-socket)"
+#   # fi
+#   # # only necessary if using pinentry in the tty (instead of GUI)
+#   # # echo UPDATESTARTUPTTY | gpg-connect-agent > /dev/null 2>&1
+# fi
+# # ssh-add
 
 
 # uneff GPG Agent
@@ -91,6 +91,8 @@ alias kmp="kubectl --namespace=mainline-production"
 # googcloud
 if [ -f "$HOME/google-cloud-sdk/path.zsh.inc" ]; then source "$HOME/google-cloud-sdk/path.zsh.inc"; fi
 if [ -f "$HOME/google-cloud-sdk/completion.zsh.inc" ]; then source "$HOME/google-cloud-sdk/completion.zsh.inc"; fi
+if [ -f '/Users/w0p01l6/Downloads/google-cloud-sdk/path.zsh.inc' ]; then . '/Users/w0p01l6/Downloads/google-cloud-sdk/path.zsh.inc'; fi
+if [ -f '/Users/w0p01l6/Downloads/google-cloud-sdk/completion.zsh.inc' ]; then . '/Users/w0p01l6/Downloads/google-cloud-sdk/completion.zsh.inc'; fi
 
 
 #go - "golang" when googling.
@@ -139,6 +141,9 @@ alias plz='foreman run bundle exec'
 # Docker poo
 alias destroy_the_child='df -h ; docker system df ; docker rm $(docker ps -a -q) ; docker rmi -f $(docker images -q) ; docker volume ls -qf dangling=true | xargs docker volume rm ; docker system prune -af ; docker system prune -af --volumes ; docker system df ; df -h'
 
+# Rancher Desktop (Replacement for Docker Desktop)
+export PATH="$HOME/.rd/bin:~/.rd/bin:$PATH"
+
 
 # Eff this shit. It hijacks curl by placing a curl binary in it's bin dir. What is this garbage?
 # anaconda (python residue)
@@ -169,16 +174,14 @@ alias destroy_the_child='df -h ; docker system df ; docker rm $(docker ps -a -q)
 #export PATH="$HOME/Android/Sdk/platform-tools:$PATH" # Linux
 #export PATH="$HOME/.fastlane/bin:/Users/portaj/Library/Android/sdk/ndk-bundle:$PATH"
 
+# openjdk nonsense
+# export PATH="/opt/homebrew/opt/openjdk@17/bin:$PATH"
 
 # kafka "cli"
 # export PATH="/opt/kafka_2.13-3.1.0/bin:$PATH"
 
-export AWS_PROFILE=portaj
-
-
 # family cookie recipes
 source $HOME/dotfiles/.secrets
-
 
 # helpers
 source $HOME/dotfiles/util.sh
