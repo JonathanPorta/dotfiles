@@ -21,7 +21,7 @@ fi
 
 
 # GPG Agentry
-if [ ! -n "$SSH_CLIENT" ]; then
+if [ -z "$SSH_CLIENT" ] && command -v gpgconf >/dev/null 2>&1; then
   export GPG_TTY=$(tty)
 
   # Check if gpg-agent is running and start it if it isn't

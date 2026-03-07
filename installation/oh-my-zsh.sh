@@ -33,14 +33,11 @@ echo_green "Done."
 # change default shell
 echo_green "Setting zsh to default shell..."
 source $HOME/.zshrc
-if [ -f "/bin/zsh" ]; then
-  echo_green "Please enter the following path: /bin/zsh"
-  sudo lchsh -i $USER
-  sudo lchsh -i root
+# Use /bin/zsh on macOS to avoid /etc/shells issues with Homebrew zsh
+if [ "$(uname -s)" = "Darwin" ]; then
+  sudo chsh -s /bin/zsh "$USER"
 else
-  echo_green "Please enter the following path: $(which zsh)"
-  sudo lchsh -i $USER
-  sudo lchsh -i root
+  sudo chsh -s "$(command -v zsh)" "$USER"
 fi
 source $HOME/.zshrc
 echo_green "Done."
