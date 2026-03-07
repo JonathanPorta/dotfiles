@@ -35,14 +35,37 @@ chmod 700 ${SSH_DIR}/
 ls -lah ${SSH_DIR}
 echo "Done."
 
-if test -f "${SSH_DIR}/id_rsa"
+if test -f "${SSH_DIR}/id_ed25519" && test -f "${SSH_DIR}/id_ed25519.pub"
 then
-    echo "${SSH_DIR}/id_rsa exists. Not regenerating."
+    echo "${SSH_DIR}/id_ed25519 exists. Not regenerating."
 else
-    echo "${SSH_DIR}/id_rsa doesn't exist. Generating new SSH key..."
-    ssh-keygen -b 4096 -t rsa-sha2-512 -f ${SSH_DIR}/id_rsa -q -N ""
-    sudo chown ${LOCAL_USERNAME} ${SSH_DIR}/id_rsa*
+    echo "Generating new SSH key..."
+    ssh-keygen -t ed25519 -f ${SSH_DIR}/id_ed25519 -q -N ""
+    sudo chown ${LOCAL_USERNAME} ${SSH_DIR}/id_ed25519*
     echo "Done."
+fi
+
+echo "Ensuring jq is installed..."
+if ! command -v jq >/dev/null 2>&1; then
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        # Ensure brew is discoverable in non-login shells
+        if ! command -v brew >/dev/null 2>&1; then
+            for _brew_dir in /opt/homebrew/bin /usr/local/bin; do
+                if [[ -x "$_brew_dir/brew" ]]; then
+                    export PATH="$_brew_dir:$PATH"
+                    break
+                fi
+            done
+        fi
+        if command -v brew >/dev/null 2>&1; then
+            brew install jq
+        else
+            echo "Error: Homebrew is not installed. Install it from https://brew.sh/ and re-run this script."
+            exit 1
+        fi
+    else
+        sudo dnf install -y jq
+    fi
 fi
 
 echo "Ensure GitHub keys are synced to local authorized_keys..."
@@ -68,7 +91,7 @@ echo "Done."
 echo "Ensure .ssh files have the correct permissions..."
 chmod 640 ${SSH_DIR}/authorized_keys
 chmod 644 ${SSH_DIR}/*.pub
-chmod 600 ${SSH_DIR}/id_rsa
+chmod 600 ${SSH_DIR}/id_ed25519
 
 ls -lah ${SSH_DIR}
 echo "Done."

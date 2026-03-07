@@ -11,6 +11,19 @@ export NOW=$(date -u +%s)
 mkdir -p $DEVEL
 mkdir -p $HOME/bin
 
+# Ensure git is installed (fresh machines may not have it)
+if ! command -v git >/dev/null 2>&1; then
+    echo "Installing git..."
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        echo "Xcode Command Line Tools are required. Installing..."
+        xcode-select --install 2>/dev/null || true
+        echo "Please complete the Xcode CLI Tools installation dialog, then re-run this script."
+        exit 1
+    else
+        sudo dnf install -y git
+    fi
+fi
+
 echo "Ensuring a local checkout of github.com/jonathanporta/dotfiles exists and is where we expect it..."
 # if we already have the dotfiles repo cloned then lets fetch and nothing else. yolo
 if [ -d "$DOTFILES_CHECKOUT" ]; then
@@ -18,7 +31,7 @@ if [ -d "$DOTFILES_CHECKOUT" ]; then
   git fetch
 # if we don't have the repo, let's clone it
 else
-  git clone git@github.com:JonathanPorta/dotfiles.git $DOTFILES_CHECKOUT
+  git clone https://github.com/JonathanPorta/dotfiles.git $DOTFILES_CHECKOUT
 fi
 
 echo "Ensure symlink of '$HOME/dotfiles' points to '$DOTFILES_CHECKOUT/dotfiles $HOME/dotfiles'..."
@@ -29,7 +42,32 @@ fi
 
 $DOTFILES_CHECKOUT/installation/symlink.sh
 
+# Ensure jq is installed for JSON parsing
+if ! command -v jq >/dev/null 2>&1; then
+    echo "Installing jq..."
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        # Ensure brew is discoverable in non-login shells
+        if ! command -v brew >/dev/null 2>&1; then
+            for _brew_dir in /opt/homebrew/bin /usr/local/bin; do
+                if [[ -x "$_brew_dir/brew" ]]; then
+                    export PATH="$_brew_dir:$PATH"
+                    break
+                fi
+            done
+        fi
+        if command -v brew >/dev/null 2>&1; then
+            brew install jq
+        else
+            echo "Error: Homebrew is not installed. Install it from https://brew.sh/ and re-run this script."
+            exit 1
+        fi
+    else
+        sudo dnf install -y jq
+    fi
+fi
+
 echo "Ensure authorized keys are synced to local authorized_keys..."
+mkdir -p $HOME/.ssh
 # we want to be able to run this and update the authorized keys with whatever we have on GH
 curl https://api.github.com/users/jonathanporta/keys | jq -r '.[] | .key' > $HOME/.ssh/authorized_keys
 echo "Updated '$HOME/.ssh/authorized_keys' to:"
@@ -45,11 +83,22 @@ if [ -f "$HOME/.zshrc" ]; then
 fi
 ln -s "$HOME/dotfiles/.zshrc" "$HOME/.zshrc"
 
+# Ensure zsh is installed (run.sh requires it)
+if ! command -v zsh >/dev/null 2>&1; then
+    echo "Installing zsh..."
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        echo "zsh should be pre-installed on macOS. Something is wrong."
+        exit 1
+    else
+        sudo dnf install -y zsh
+    fi
+fi
+
 echo "*******************************************"
-echo "Intial setup complete!"
+echo "Initial setup complete!"
 echo "To continue setup, restart your shell and please run:"
 echo "-------------------------------------------"
-echo "source $HOME/.zshrc && $DOTFILES_CHECKOUT/run.sh"
+echo "zsh -lc \"$DOTFILES_CHECKOUT/run.sh\""
 echo "-------------------------------------------"
 
 # $DOTFILES_CHECKOUT/run.sh

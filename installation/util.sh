@@ -14,7 +14,10 @@ if [[ $OS == 'linux' ]]; then
   echo_green "Done."
 fi
 pkg_install vim
-pkg_install git wget curl zsh tmux tmate jq hub neovim telnet util-linux-user #python3-neovim
+pkg_install git wget curl zsh tmux tmate jq hub neovim telnet
+if [[ $OS == 'linux' ]]; then
+  pkg_install util-linux-user
+fi
 echo_green "Done."
 
 #hub
@@ -40,7 +43,11 @@ gh extension install vilmibm/gh-screensaver
 
 #gpg
 echo_green "Installing gpg stuffs..."
-pkg_install gnupg gpg-agent pinentry-mac
+if [[ $OS == 'darwin' ]]; then
+  pkg_install gnupg gpg-agent pinentry-mac
+else
+  pkg_install gnupg gpg-agent
+fi
 echo_green "Done."
 
 # git-lfs - https://git-lfs.github.com
