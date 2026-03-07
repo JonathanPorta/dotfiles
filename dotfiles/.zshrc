@@ -1,3 +1,4 @@
+# zmodload zsh/zprof
 # https://unix.stackexchange.com/a/71258/103099
 # https://stackoverflow.com/a/18187389
 
@@ -60,6 +61,7 @@ plugins=(zsh-completions pipenv)
 # RPS1='$(kubectx_prompt_info)'
 
 
+ZSH_DISABLE_COMPFIX=true
 source $ZSH/oh-my-zsh.sh
 
 # Bring in my env stuff that isn't just zsh config
@@ -69,15 +71,13 @@ source $ZSH/oh-my-zsh.sh
 # Moved to .profile
 # source $HOME/dotfiles/generate_gitconfig.sh
 
-autoload -U +X bashcompinit && bashcompinit
-autoload -Uz compinit && compinit
 complete -o nospace -C /usr/bin/terraform terraform
-complete -C '/usr/local/bin/aws_completer' aws
+# complete -C '/usr/local/bin/aws_completer' aws
 
-# TODO: Re-enable once they fix this bug: https://github.com/spaceship-prompt/spaceship-prompt/issues/1207
-SPACESHIP_PROMPT_ASYNC=false
+SPACESHIP_PROMPT_ASYNC=true
 
 
 if [ -f "$HOME/dotfiles/.profile" ]; then
   . $HOME/dotfiles/.profile
 fi
+# zprof
