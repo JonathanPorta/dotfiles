@@ -43,8 +43,8 @@ alias gpg_reboot='gpgconf --kill gpg-agent; killall gpg-agent ; killall gpg-agen
 
 # gh cli replacements
 alias woot='gh screensaver -s fireworks -- --message="w00t!"'
-alias gpr='git push origin $(git rev-parse --abbrev-ref HEAD) && gh pr create --editor'
-alias gprw='git push origin $(git rev-parse --abbrev-ref HEAD) && gh pr create --web'
+alias gpr='git push origin -- "$(git rev-parse --abbrev-ref HEAD)" && gh pr create --editor'
+alias gprw='git push origin -- "$(git rev-parse --abbrev-ref HEAD)" && gh pr create --web'
 
 
 # git aliases
@@ -89,8 +89,13 @@ if [[ $commands[kubectl] ]]; then
 fi
 export KUBECONFIG="/home/portaj/.kube/gemini-config"
 export PATH="$HOME/.kube:$PATH"
-if [[ $commands[istioctl] ]] && [[ ! -f "${fpath[1]}/_istioctl" || "${fpath[1]}/_istioctl" -ot "$(command -v istioctl)" ]]; then
-  istioctl completion zsh > "${fpath[1]}/_istioctl"
+if [[ $commands[istioctl] ]]; then
+  _istioctl_comp="$HOME/.zsh_istioctl_completion"
+  if [[ ! -f "$_istioctl_comp" || "$_istioctl_comp" -ot "$(command -v istioctl)" ]]; then
+    istioctl completion zsh > "$_istioctl_comp"
+  fi
+  source "$_istioctl_comp"
+  unset _istioctl_comp
 fi
 
 
