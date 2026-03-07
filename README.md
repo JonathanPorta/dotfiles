@@ -48,6 +48,4 @@ zsh -lc "$HOME/devel/portaj/dotfiles/run.sh"
 - `jq` and `zsh` are auto-installed if missing (via `brew` or `dnf`)
 
 ## TODO
-
-- [ ] Cleanup notes and force push over all previous history to remove potentially unwanted info from leaking. :/
 - [ ] Add ~/.aws and similar credentials - tie in with the .secrets format.
