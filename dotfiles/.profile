@@ -9,10 +9,7 @@ elif [[ "$UNAME_OUTPUT" == 'Darwin' ]]; then
 fi
 
 
-# source homebrew shell environment if on macOS
-if [[ "$OS" == "darwin" ]]; then
-  eval "$(/opt/homebrew/bin/brew shellenv)"
-fi
+# homebrew shell environment moved to .zprofile (runs once on login, not every shell)
 
 
 # Preferred editor for local and remote sessions
@@ -46,8 +43,8 @@ alias gpg_reboot='gpgconf --kill gpg-agent; killall gpg-agent ; killall gpg-agen
 
 # gh cli replacements
 alias woot='gh screensaver -s fireworks -- --message="w00t!"'
-# alias gpr='git push origin $(git rev-parse --abbrev-ref HEAD) && gh pr create --web'
 alias gpr='git push origin $(git rev-parse --abbrev-ref HEAD) && gh pr create --editor'
+alias gprw='git push origin $(git rev-parse --abbrev-ref HEAD) && gh pr create --web'
 
 
 # git aliases
@@ -81,11 +78,20 @@ alias cbtb="curl -ivs --resolve -H 'x-tb-debug:1'"
 alias cbltb="curl -Livs --resolve -H 'x-tb-debug:1'"
 
 
-# kubectl setup
-[[ $commands[kubectl] ]] && source <(kubectl completion zsh)
+# kubectl setup - completion cached to file for fast startup
+if [[ $commands[kubectl] ]]; then
+  _kubectl_comp="$HOME/.zsh_kubectl_completion"
+  if [[ ! -f "$_kubectl_comp" || "$_kubectl_comp" -ot "$(command -v kubectl)" ]]; then
+    kubectl completion zsh > "$_kubectl_comp"
+  fi
+  source "$_kubectl_comp"
+  unset _kubectl_comp
+fi
 export KUBECONFIG="/home/portaj/.kube/gemini-config"
 export PATH="$HOME/.kube:$PATH"
-[[ $commands[istioctl] ]] && istioctl completion zsh > "${fpath[1]}/_istioctl"
+if [[ $commands[istioctl] ]] && [[ ! -f "${fpath[1]}/_istioctl" || "${fpath[1]}/_istioctl" -ot "$(command -v istioctl)" ]]; then
+  istioctl completion zsh > "${fpath[1]}/_istioctl"
+fi
 
 
 # kubectl aliases
@@ -110,42 +116,25 @@ export GOPATH=$HOME/go
 export PATH="$GOPATH/bin:$PATH:/usr/local/go/bin:$PATH"
 
 
-# nvm (node.js crap)
+# nvm (node.js crap) - lazy loaded for fast shell startup
 export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
-[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
 
-
-#node environment manager
-export PATH="$HOME/.nenv/bin:$PATH"
-eval "$(nenv init -)"
-
-
-# nvmrc - autoloader thingery
-autoload -U add-zsh-hook
-load-nvmrc() {
-  local node_version="$(nvm version)"
-  local nvmrc_path="$(nvm_find_nvmrc)"
-
-  if [ -n "$nvmrc_path" ]; then
-    local nvmrc_node_version=$(nvm version "$(cat "${nvmrc_path}")")
-
-    if [ "$nvmrc_node_version" = "N/A" ]; then
-      nvm install > /dev/null 2>&1
-    elif [ "$nvmrc_node_version" != "$node_version" ]; then
-      nvm use > /dev/null 2>&1
-    fi
-  elif [ "$node_version" != "$(nvm version default)" ]; then
-    # echo "Reverting to nvm default version"
-    nvm use default > /dev/null 2>&1
-  fi
+_nvm_lazy_load() {
+  unset -f nvm node npm npx yarn pnpm
+  [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+  [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
 }
-add-zsh-hook chpwd load-nvmrc
-load-nvmrc
+
+nvm() { _nvm_lazy_load; nvm "$@"; }
+node() { _nvm_lazy_load; node "$@"; }
+npm() { _nvm_lazy_load; npm "$@"; }
+npx() { _nvm_lazy_load; npx "$@"; }
+yarn() { _nvm_lazy_load; yarn "$@"; }
+pnpm() { _nvm_lazy_load; pnpm "$@"; }
 
 
 # Ruby Shite
-source $HOME/.chruby
+[[ -f "$HOME/.chruby" ]] && source "$HOME/.chruby"
 alias plz='foreman run bundle exec'
 
 

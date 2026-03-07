@@ -23,7 +23,7 @@ ln -s "$HOME/dotfiles/.zshrc" "$HOME/.zshrc"
 # OhMyZSH plugins
 echo_green "Installing oh-my-zsh customizations..."
 source $HOME/.zshrc
-git clone https://github.com/denysdovhan/spaceship-prompt.git "$ZSH_CUSTOM/themes/spaceship-prompt"
+git clone https://github.com/denysdovhan/spaceship-prompt.git --branch v4.21.1 "$ZSH_CUSTOM/themes/spaceship-prompt"
 ln -s "$ZSH_CUSTOM/themes/spaceship-prompt/spaceship.zsh-theme" "$ZSH_CUSTOM/themes/spaceship.zsh-theme"
 git clone https://github.com/zsh-users/zsh-completions "$ZSH_CUSTOM/plugins/zsh-completions"
 git clone https://github.com/txstc55/dogesay "$ZSH_CUSTOM/plugins/
