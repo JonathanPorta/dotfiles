@@ -81,3 +81,9 @@ if [ -f "$HOME/dotfiles/.profile" ]; then
   . $HOME/dotfiles/.profile
 fi
 # zprof
+
+# Added by Wibey CLI installation
+export PATH="$HOME/.local/bin:$PATH"
+
+# Added by Code Puppy installer on Fri Mar 20 15:06:43 PDT 2026
+alias code-puppy="$HOME/.code-puppy-venv/bin/code-puppy"

@@ -32,6 +32,14 @@ if [ -f "$HOME/.zshrc" ]; then
 fi
 ln -s "$HOME/dotfiles/.zshrc" "$HOME/.zshrc"
 
+# Replace existing .zprofile in $HOME with a link to our dotfile version
+echo "Ensure symlink of '$HOME/.zprofile' points to '$HOME/dotfiles/.zprofile'..."
+if [ -f "$HOME/.zprofile" ]; then
+  echo "'$HOME/.zprofile' already exists - renaming to '$HOME/.zprofile.old$NOW' and linking to '$HOME/dotfiles/.zprofile'."
+  mv "$HOME/.zprofile" "$HOME/.zprofile.old$NOW"
+fi
+ln -s "$HOME/dotfiles/.zprofile" "$HOME/.zprofile"
+
 # Replaced linking of $HOME/.gitconfig with generate_gitconfig.sh, make sure there isn't one already.
 echo "Removing '$HOME/.gitconfig'..."
 if [ -f "$HOME/.gitconfig" ]; then

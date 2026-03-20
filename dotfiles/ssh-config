@@ -12,7 +12,7 @@ Host archimedes* aquinas* aurelius* local.porta.codes
   PubkeyAcceptedKeyTypes +ssh-rsa
   ForwardAgent yes
 
-Host *.porta.codes *.plato.local *.local portaj-* socrates*
+Host *.plato *.porta.codes *.plato.local *.local portaj-* socrates*
   User portaj
   ForwardAgent yes
 
