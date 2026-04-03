@@ -32,6 +32,14 @@ if [ -f "$HOME/.zshrc" ]; then
 fi
 ln -s "$HOME/dotfiles/.zshrc" "$HOME/.zshrc"
 
+# Replace existing .zshenv in $HOME with a link to our dotfile version
+echo "Ensure symlink of '$HOME/.zshenv' points to '$HOME/dotfiles/.zshenv'..."
+if [ -f "$HOME/.zshenv" ]; then
+  echo "'$HOME/.zshenv' already exists - renaming to '$HOME/.zshenv.old$NOW' and linking to '$HOME/dotfiles/.zshenv'."
+  mv "$HOME/.zshenv" "$HOME/.zshenv.old$NOW"
+fi
+ln -s "$HOME/dotfiles/.zshenv" "$HOME/.zshenv"
+
 # Replace existing .zprofile in $HOME with a link to our dotfile version
 echo "Ensure symlink of '$HOME/.zprofile' points to '$HOME/dotfiles/.zprofile'..."
 if [ -f "$HOME/.zprofile" ]; then
@@ -61,18 +69,3 @@ if [ -f "$HOME/.chruby" ]; then
   mv "$HOME/.chruby" "$HOME/.chruby.old$NOW"
 fi
 ln -s "$HOME/dotfiles/.chruby" "$HOME/.chruby"
-
-# Get ZSH ready
-if [ -f "$HOME/.oh-my-zsh/oh-my-zsh.sh" ]; then
-  echo "'$HOME/.oh-my-zsh/oh-my-zsh.sh' already exists - renaming to '$HOME/.oh-my-zsh.old$NOW'..."
-  mv "$HOME/.oh-my-zsh" "$HOME/.oh-my-zsh.old$NOW"
-fi
-
-# Do this again because oh-my-zsh removes it
-# Replace existing .zshrc in $HOME with a link to our dotfile version
-echo "Ensure symlink of '$HOME/.zshrc' points to '$HOME/dotfiles/.zshrc'..."
-if [ -f "$HOME/.zshrc" ]; then
-  echo "'$HOME/.zshrc' already exists - renaming to '$HOME/.zshrc.old$NOW' and linking to '$HOME/dotfiles/.zshrc'."
-  mv "$HOME/.zshrc" "$HOME/.zshrc.old$NOW"
-fi
-ln -s "$HOME/dotfiles/.zshrc" "$HOME/.zshrc"

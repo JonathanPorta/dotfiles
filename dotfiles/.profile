@@ -8,10 +8,6 @@ elif [[ "$UNAME_OUTPUT" == 'Darwin' ]]; then
    export OS='darwin'
 fi
 
-
-# homebrew shell environment moved to .zprofile (runs once on login, not every shell)
-
-
 # Preferred editor for local and remote sessions
 if [[ -n $SSH_CONNECTION ]]; then
   export EDITOR='vim'
@@ -76,10 +72,10 @@ alias crtb="curl -ivso /dev/null --resolve -H 'x-tb-debug:1'"
 alias cltb="curl -Livso /dev/null --resolve -H 'x-tb-debug:1'"
 alias cbtb="curl -ivs --resolve -H 'x-tb-debug:1'"
 alias cbltb="curl -Livs --resolve -H 'x-tb-debug:1'"
+alias icanhazip="curl -s https://icanhazip.com"
 
-
-# kubectl setup - completion cached to file for fast startup
-if [[ $commands[kubectl] ]]; then
+# kubectl and istioctl setup - completion cached to file for fast startup
+if [[ $commands[kubectl] && $+functions[compdef] -ne 0 ]]; then
   _kubectl_comp="$HOME/.zsh_kubectl_completion"
   if [[ ! -f "$_kubectl_comp" || "$_kubectl_comp" -ot "$(command -v kubectl)" ]]; then
     kubectl completion zsh > "$_kubectl_comp"
@@ -87,9 +83,8 @@ if [[ $commands[kubectl] ]]; then
   source "$_kubectl_comp"
   unset _kubectl_comp
 fi
-export KUBECONFIG="/home/portaj/.kube/gemini-config"
-export PATH="$HOME/.kube:$PATH"
-if [[ $commands[istioctl] ]]; then
+
+if [[ $commands[istioctl] && $+functions[compdef] -ne 0 ]]; then
   _istioctl_comp="$HOME/.zsh_istioctl_completion"
   if [[ ! -f "$_istioctl_comp" || "$_istioctl_comp" -ot "$(command -v istioctl)" ]]; then
     istioctl completion zsh > "$_istioctl_comp"
@@ -110,87 +105,44 @@ alias kdc="kubectl --namespace=democratic-csi"
 alias kmp="kubectl --namespace=mainline-production"
 
 
-# googcloud
+# google cloud sdk
 if [ -f "$HOME/google-cloud-sdk/path.zsh.inc" ]; then source "$HOME/google-cloud-sdk/path.zsh.inc"; fi
 if [ -f "$HOME/google-cloud-sdk/completion.zsh.inc" ]; then source "$HOME/google-cloud-sdk/completion.zsh.inc"; fi
 
 
-#go - "golang" when googling.
-#export GOROOT=$HOME/go wtf, who set this? -- Leaving this as a reminder of what not to do.
-export GOPATH=$HOME/go
-export PATH="$GOPATH/bin:$PATH:/usr/local/go/bin:$PATH"
-
-
 # nvm (node.js crap) - lazy loaded for fast shell startup
-export NVM_DIR="$HOME/.nvm"
+if [ -s "$HOME/.nvm/nvm.sh" ]; then
+  export NVM_DIR="$HOME/.nvm"
 
-_nvm_lazy_load() {
-  unset -f nvm node npm npx yarn pnpm
-  [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-  [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
-}
+  _nvm_lazy_load() {
+    unset -f nvm node npm npx yarn pnpm
+    [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+    [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+  }
 
-nvm() { _nvm_lazy_load; nvm "$@"; }
-node() { _nvm_lazy_load; node "$@"; }
-npm() { _nvm_lazy_load; npm "$@"; }
-npx() { _nvm_lazy_load; npx "$@"; }
-yarn() { _nvm_lazy_load; yarn "$@"; }
-pnpm() { _nvm_lazy_load; pnpm "$@"; }
+  nvm() { _nvm_lazy_load; nvm "$@"; }
+  node() { _nvm_lazy_load; node "$@"; }
+  npm() { _nvm_lazy_load; npm "$@"; }
+  npx() { _nvm_lazy_load; npx "$@"; }
+  yarn() { _nvm_lazy_load; yarn "$@"; }
+  pnpm() { _nvm_lazy_load; pnpm "$@"; }
+fi
 
 
 # Ruby Shite
 [[ -f "$HOME/.chruby" ]] && source "$HOME/.chruby"
 alias plz='foreman run bundle exec'
 
-
 # Docker poo
 alias destroy_the_child='df -h ; docker system df ; docker rm $(docker ps -a -q) ; docker rmi -f $(docker images -q) ; docker volume ls -qf dangling=true | xargs docker volume rm ; docker system prune -af ; docker system prune -af --volumes ; docker system df ; df -h'
 
-# Rancher Desktop (Replacement for Docker Desktop)
-export PATH="$HOME/.rd/bin:~/.rd/bin:$PATH"
-
-
-# Eff this shit. It hijacks curl by placing a curl binary in it's bin dir. What is this garbage?
-# anaconda (python residue)
-#export PATH="$HOME/anaconda3/bin:$HOME/.local/bin:$PATH"
-#source $HOME/anaconda3/etc/profile.d/conda.sh
-
-
-#TODO: Uncomment as needed
-## special bullshitters
-# Chromium build tools
-#export PATH="$HOME/devel/depot_tools:$PATH"
-
-
-#TODO: Handle for multiple OS'
-# nvidia cuda libs
-#export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/extras/CUPTI/lib64
-
-
-#TODO: Handle for multiple OS'
-# imagemagick binary
-#export PATH="/usr/local/opt/imagemagick@6/bin:$PATH"
-
-
-#TODO: Handle for multiple OS'
-# Android Studio Crap + Other Mobile Dev
-#export PATH="/opt/google/android-studio/bin:$PATH"
-#export PATH="/Users/portaj/Library/Android/sdk/platform-tools:$PATH" # Mac OS
-#export PATH="$HOME/Android/Sdk/platform-tools:$PATH" # Linux
-#export PATH="$HOME/.fastlane/bin:/Users/portaj/Library/Android/sdk/ndk-bundle:$PATH"
-
-# openjdk nonsense
-# export PATH="/opt/homebrew/opt/openjdk@17/bin:$PATH"
-
-# kafka "cli"
-# export PATH="/opt/kafka_2.13-3.1.0/bin:$PATH"
+#-- (PATH setup moved to .zshenv - all PATH manipulations are now centralized there) --#
 
 # family cookie recipes
 source $HOME/dotfiles/.secrets
 
 # helpers
 source $HOME/dotfiles/util.sh
-
 
 # Git Config
 source $HOME/dotfiles/generate_gitconfig.sh

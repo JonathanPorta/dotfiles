@@ -62,7 +62,9 @@ plugins=(zsh-completions pipenv)
 
 
 ZSH_DISABLE_COMPFIX=true
-source $ZSH/oh-my-zsh.sh
+if [ -f "$ZSH/oh-my-zsh.sh" ]; then
+  source $ZSH/oh-my-zsh.sh
+fi
 
 # Bring in my env stuff that isn't just zsh config
 # TODO: Moved to .zshenv but need to break up these files into stuff that can be loaded when needed vs not.
@@ -71,7 +73,9 @@ source $ZSH/oh-my-zsh.sh
 # Moved to .profile
 # source $HOME/dotfiles/generate_gitconfig.sh
 
-complete -o nospace -C /usr/bin/terraform terraform
+if command -v complete >/dev/null 2>&1; then
+  complete -o nospace -C /usr/bin/terraform terraform
+fi
 # complete -C '/usr/local/bin/aws_completer' aws
 
 SPACESHIP_PROMPT_ASYNC=true
