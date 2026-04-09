@@ -2,9 +2,23 @@
 
 How to generate a GPG key and move it onto a YubiKey for signing git commits and SSH authentication.
 
-> **Goal:** A single YubiKey that handles git commit signing, SSH auth, and (optionally) email encryption. Daily-use private key material lives on the hardware token; offline backups are stored separately for disaster recovery.
+> **Goal:** Malware cannot silently sign commits or SSH into anything without your physical presence. Daily-use private key material lives on the YubiKey. Signing and authentication both require **PIN + physical touch** on every use.
 
-> **Authentication model:** GPG on YubiKey uses **PIN + physical touch**, not biometrics. YubiKey's fingerprint reader (Bio edition) only applies to FIDO2/U2F, which is a separate protocol from OpenPGP. If biometrics matter more to you than GPG, consider SSH commit signing with a FIDO2 flow instead.
+> **Authentication model:** GPG on YubiKey uses **PIN + physical touch**, not biometrics. YubiKey's fingerprint reader (Bio edition) is FIDO2-only and does not apply to OpenPGP. If biometrics matter more than GPG, consider SSH commit signing with a FIDO2 flow instead.
+
+---
+
+## Threat Model
+
+| Threat | Control |
+|---|---|
+| Malware silently signs a commit | YubiKey `sig` touch policy `fixed` + PIN always |
+| Malware silently SSHes into a server | YubiKey `aut` touch policy `fixed` + short SSH cache TTL |
+| Unsigned commit pushed to GitHub | GitHub ruleset: **Require signed commits** |
+| YubiKey stolen, PIN unknown | PIN lockout after 3 attempts |
+| YubiKey dies | Rotate keys, create new YubiKey. Backups exist separately for the master key only. |
+
+**Caveat:** Touch stops *blind* malware. It does not stop malware that acts *while you are present* and tricks you into touching the key for the wrong thing. Physical presence is a strong gate, not magic.
 
 ---
 
@@ -13,7 +27,7 @@ How to generate a GPG key and move it onto a YubiKey for signing git commits and
 - A **YubiKey 5** series (or any YubiKey with OpenPGP support)
 - `gpg2` installed (`brew install gnupg` on macOS, `dnf install gnupg2` on Fedora)
 - `pinentry-mac` on macOS (`brew install pinentry-mac`) or `pinentry-curses` on Linux
-- `ykman` (YubiKey Manager) — required for touch/PIN policy (`brew install ykman`)
+- `ykman` (YubiKey Manager) — **required** for touch/PIN policy (`brew install ykman`)
 
 Verify GPG is working:
 ```bash
@@ -24,7 +38,6 @@ gpg --version
 Verify YubiKey is detected:
 ```bash
 gpg --card-status
-# Should display your YubiKey details
 ```
 
 ---
@@ -34,22 +47,30 @@ gpg --card-status
 GPG packages and configuration are managed by this dotfiles repo via `installation/gpg.sh`. This script:
 - Installs `gnupg`, `pinentry-mac` (macOS) or `pinentry-curses` (Linux), and `ykman`
 - Symlinks `dotfiles/gpg.conf` → `~/.gnupg/gpg.conf` (strong algorithm defaults, long key IDs)
-- Copies `dotfiles/gpg-agent.conf` → `~/.gnupg/gpg-agent.conf` (SSH support, cache TTLs)
+- Copies `dotfiles/gpg-agent.conf` → `~/.gnupg/gpg-agent.conf` (SSH support, aggressive cache TTLs)
 - On macOS, automatically appends `pinentry-program` pointing to `pinentry-mac`
 
-If you've already run `init.sh` followed by `run.sh`, everything is in place. Otherwise, run it directly:
+If you've already run `init.sh` followed by `run.sh`, everything is in place. Otherwise:
 
 ```bash
 $HOME/devel/$USER/dotfiles/installation/gpg.sh
 ```
 
-Restart the agent to pick up the new config:
+The `gpg-agent.conf` is configured for minimal caching:
+```conf
+enable-ssh-support
+default-cache-ttl 60          # 1 minute
+max-cache-ttl 300              # 5 minutes
+default-cache-ttl-ssh 60       # 1 minute for SSH
+max-cache-ttl-ssh 300          # 5 minutes for SSH
+ignore-cache-for-signing       # always prompt for signing PIN
+```
+
+Restart the agent:
 ```bash
 gpgconf --kill gpg-agent
 gpg-connect-agent /bye
 ```
-
-> **Manual override:** Edit `dotfiles/gpg.conf` or `dotfiles/gpg-agent.conf` in the repo directly.
 
 ---
 
@@ -67,14 +88,13 @@ Choose:
 3. Expiration: **0** (does not expire) or **2y** (your call)
 4. Real name: `Jonathan Porta`
 5. Email: `jonathan@jonathanporta.com`
-6. Passphrase: **use a strong passphrase** — you'll need this to manage subkeys
+6. Passphrase: **use a strong passphrase** — only needed for key management, not daily use
 
 Note the key ID from the output:
 ```
 pub   rsa4096/0xABCD1234ABCD1234 2026-04-09 [C]
 ```
 
-Export and save it:
 ```bash
 export KEYID=0xABCD1234ABCD1234
 ```
@@ -83,7 +103,7 @@ export KEYID=0xABCD1234ABCD1234
 
 ## Step 3: Add Subkeys
 
-Add three subkeys that **will** live on the YubiKey:
+Add two subkeys for daily use on the YubiKey:
 
 ```bash
 gpg --expert --edit-key $KEYID
@@ -94,24 +114,18 @@ gpg --expert --edit-key $KEYID
 gpg> addkey
 # (8) RSA (set your own capabilities) → toggle to Sign only
 # Key size: 4096
-# Expiration: 1y (recommended, you can extend later)
+# Expiration: 1y (you can extend later)
 ```
 
-### 3b. Encryption subkey
-```
-gpg> addkey
-# (8) RSA (set your own capabilities) → toggle to Encrypt only
-# Key size: 4096
-# Expiration: 1y
-```
-
-### 3c. Authentication subkey (for SSH)
+### 3b. Authentication subkey (for SSH)
 ```
 gpg> addkey
 # (8) RSA (set your own capabilities) → toggle to Authenticate only
 # Key size: 4096
 # Expiration: 1y
 ```
+
+> **Note:** Encryption subkey is optional. If you don't need GPG-encrypted email or files, skip it. Fewer keys = less to manage.
 
 Save:
 ```
@@ -121,7 +135,7 @@ gpg> save
 Verify:
 ```bash
 gpg -K $KEYID
-# Should show [C], [S], [E], [A] subkeys
+# Should show [C], [S], [A] subkeys
 ```
 
 ---
@@ -144,7 +158,7 @@ gpg --armor --export $KEYID > public-key.asc
 gpg --export-ownertrust > ownertrust.txt
 ```
 
-**Store these files securely offline** (encrypted USB, password manager, safe deposit box — not on your laptop). These backups are your only recovery path if the YubiKey is lost or damaged.
+**Store these files securely offline** (encrypted USB, password manager, safe deposit box — not on your laptop). If the YubiKey dies, you'll create a new one. These backups let you re-certify new subkeys with the master.
 
 ---
 
@@ -156,23 +170,15 @@ gpg --edit-key $KEYID
 
 ### Move the Signing key:
 ```
-gpg> key 1          # select the first subkey (signing)
+gpg> key 1          # select the signing subkey
 gpg> keytocard
 # Choose: (1) Signature key
 ```
 
-### Move the Encryption key:
-```
-gpg> key 1          # deselect
-gpg> key 2          # select encryption subkey
-gpg> keytocard
-# Choose: (2) Encryption key
-```
-
 ### Move the Authentication key:
 ```
-gpg> key 2          # deselect
-gpg> key 3          # select auth subkey
+gpg> key 1          # deselect
+gpg> key 2          # select auth subkey
 gpg> keytocard
 # Choose: (3) Authentication key
 ```
@@ -182,33 +188,47 @@ Save:
 gpg> save
 ```
 
-Verify the keys now show `ssb>` (the `>` means "on card"):
+Verify the keys show `ssb>` (the `>` means "on card"):
 ```bash
 gpg -K $KEYID
 # sec   rsa4096/0xABCD... [C]
 # ssb>  rsa4096/...       [S]
-# ssb>  rsa4096/...       [E]
 # ssb>  rsa4096/...       [A]
 ```
 
 ---
 
-## Step 6: Configure the YubiKey
+## Step 6: Harden the YubiKey
 
-### Change PINs (required)
-
-The defaults are well-known and must be changed:
+### Change PINs (required — defaults are well-known)
 
 ```bash
 gpg --card-edit
 ```
-
 ```
 gpg/card> admin
 gpg/card> passwd
-# 1 - change PIN (default: 123456) — used for daily signing/decrypt
+# 1 - change PIN (default: 123456) — used for daily signing/auth
 # 3 - change Admin PIN (default: 12345678) — used for key management
 gpg/card> quit
+```
+
+### Require touch for every operation (non-negotiable)
+
+Use `fixed` — touch is mandatory and **cannot be disabled without deleting the private key**. Do NOT use `on` (can be turned off) or `cached`/`cached-fixed` (allows 15-second reuse window).
+
+```bash
+# Signing — every commit requires a touch
+ykman openpgp keys set-touch sig fixed
+
+# Authentication — every SSH connection requires a touch
+ykman openpgp keys set-touch aut fixed
+```
+
+### Require PIN for every signature
+
+```bash
+ykman openpgp access set-signature-policy always
 ```
 
 ### Set cardholder info (optional)
@@ -227,57 +247,38 @@ gpg/card> login
 gpg/card> quit
 ```
 
-### Require touch for every signature (recommended)
-
-This ensures physical presence — you must touch the YubiKey every time a commit is signed:
-
-```bash
-# Require touch for signing operations
-ykman openpgp keys set-touch sig on
-
-# Require touch for authentication (SSH)
-ykman openpgp keys set-touch aut on
-
-# Require touch for encryption/decryption
-ykman openpgp keys set-touch enc on
-```
-
-### Require PIN for every signature (recommended)
-
-By default, the PIN may be cached. Force the PIN prompt on every signature:
-
-```bash
-ykman openpgp access set-signature-policy always
-```
-
-This gives you **PIN + physical touch for every commit** — the closest thing to "must possess the key and prove it."
-
 ---
 
-## Step 7: Configure Git to Sign with YubiKey
+## Step 7: Configure Git Signing
 
-The dotfiles `generate_gitconfig.sh` already sets `gpg.program = gpg2`, `commit.gpgsign = true`, and `tag.gpgsign = true`. You just need to uncomment and set the signing key.
+The dotfiles `generate_gitconfig.sh` already sets `gpg.program = gpg2` and has `commit.gpgsign` and `tag.gpgsign` ready to uncomment.
 
 ### Get your signing subkey ID:
 ```bash
 gpg -K --keyid-format long
-# Look for the [S] subkey — that's your signing key
+# Look for the [S] subkey
 ```
 
-### Set the signing key in dotfiles:
+### Enable signing in dotfiles:
 
-Edit `dotfiles/helpers/generate_gitconfig.sh` and uncomment the `signingkey` line in the `[user]` section:
+Edit `dotfiles/helpers/generate_gitconfig.sh` — uncomment and set the signing key and gpgsign lines:
 
 ```ini
 [user]
   name = Jonathan Porta
   email = jonathan@jonathanporta.com
   signingkey = 0xYOUR_SIGNING_SUBKEY_ID!
+
+[commit]
+  gpgsign = true
+
+[tag]
+  gpgsign = true
 ```
 
-> **The `!` suffix** tells Git to use that exact subkey rather than letting GPG choose. See [GitHub docs on signing keys](https://docs.github.com/en/authentication/managing-commit-signature-verification/telling-git-about-your-signing-key).
+> **The `!` suffix** tells Git to use that exact subkey rather than letting GPG choose. See [GitHub docs](https://docs.github.com/en/authentication/managing-commit-signature-verification/telling-git-about-your-signing-key).
 
-Then re-source to regenerate the config:
+Re-source to regenerate:
 ```bash
 source ~/.helpers/generate_gitconfig.sh
 ```
@@ -285,7 +286,7 @@ source ~/.helpers/generate_gitconfig.sh
 ### Verify signing works:
 ```bash
 echo "test" | gpg --clearsign
-# Should prompt for YubiKey PIN and touch
+# Should prompt for YubiKey PIN + touch
 ```
 
 ---
@@ -293,41 +294,42 @@ echo "test" | gpg --clearsign
 ## Step 8: Upload Public Key to GitHub
 
 ```bash
-# Copy public key to clipboard
+# Copy GPG public key to clipboard
 gpg --armor --export $KEYID | pbcopy   # macOS
-# gpg --armor --export $KEYID | xclip  # Linux
+
+# Copy SSH public key (from the auth subkey)
+gpg --export-ssh-key $KEYID | pbcopy   # macOS
 ```
 
-Then go to **GitHub → Settings → SSH and GPG keys → New GPG key** and paste it.
+Add both to GitHub:
+- **GPG key:** GitHub → Settings → SSH and GPG keys → New GPG key
+- **SSH key:** GitHub → Settings → SSH and GPG keys → New SSH key
 
 ---
 
 ## Step 9: Enforce Signed Commits on GitHub (Server-Side)
 
-Local signing defaults are not enough — anyone can bypass them with `--no-gpg-sign`, from another machine, or after disabling the config. **Server-side enforcement is required.**
+Local signing defaults can be bypassed (`--no-gpg-sign`, another machine, editing `.gitconfig`). **Server-side enforcement is required.**
 
 ### Option A: Branch Protection Rules
-1. Go to your repository on GitHub
-2. **Settings → Branches → Branch protection rules → Add rule**
-3. Branch name pattern: `main` (or `**` for all branches)
-4. Check **Require signed commits**
+1. Repository → **Settings → Branches → Branch protection rules → Add rule**
+2. Branch name pattern: `main` (or `**` for all branches)
+3. Check **Require signed commits**
 
-### Option B: Repository Rulesets (newer, recommended)
-1. Go to your repository on GitHub
-2. **Settings → Rules → Rulesets → New ruleset**
-3. Add the **Require signed commits** rule
-4. Target: **Default branch** (or all branches)
+### Option B: Repository Rulesets (recommended)
+1. Repository → **Settings → Rules → Rulesets → New ruleset**
+2. Add the **Require signed commits** rule
+3. Target: **Default branch** or all branches
 
-With this enabled, GitHub will reject any push containing unsigned or unverified commits to the protected branch. See [GitHub docs on rulesets](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/available-rules-for-rulesets).
+GitHub rejects any push containing unsigned or unverified commits to the protected branch. See [GitHub docs on rulesets](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/available-rules-for-rulesets).
 
 ---
 
 ## Step 10: SSH Authentication via YubiKey
 
-Your `.profile` already configures `gpg-agent` with SSH support. To get your SSH public key from the YubiKey:
+Your `.profile` already configures `gpg-agent` with SSH support. To get your SSH public key:
 
 ```bash
-# Ensure gpg-agent is running with SSH support
 export GPG_TTY=$(tty)
 export SSH_AUTH_SOCK=$(gpgconf --list-dirs agent-ssh-socket)
 
@@ -337,14 +339,13 @@ ssh-add -L
 gpg --export-ssh-key $KEYID
 ```
 
-Add the SSH public key output to GitHub (Settings → SSH keys) and any `authorized_keys` files you need.
+Add the SSH public key output to `authorized_keys` on any machines you need access to.
 
 ---
 
 ## Day-to-Day Usage
 
 ### Signing a commit
-Just commit normally — with `commit.gpgsign = true` and touch policy enabled:
 ```bash
 git commit -m "signed commit"
 # 1. Enter YubiKey PIN when prompted
@@ -353,22 +354,16 @@ git commit -m "signed commit"
 
 ### SSH into a server
 ```bash
-ssh user@host  # touch YubiKey when it blinks
+ssh user@host
+# Touch the YubiKey when it blinks
 ```
 
 ### Verify it's working
 ```bash
-# Verify GPG sees the card
-gpg --card-status
-
-# Verify SSH agent sees the key
-ssh-add -L
-
-# Verify git signing works
-echo "test" | gpg --clearsign
-
-# Verify a commit is signed
-git log --show-signature -1
+gpg --card-status             # GPG sees the card
+ssh-add -L                    # SSH agent sees the key
+echo "test" | gpg --clearsign # Signing works (PIN + touch)
+git log --show-signature -1   # Commit is signed
 ```
 
 ---
@@ -377,7 +372,6 @@ git log --show-signature -1
 
 ### "No secret key" or "No card"
 ```bash
-# Restart the agent
 gpg_reboot  # alias from .profile
 
 # Or manually:
@@ -386,15 +380,13 @@ gpg-connect-agent /bye
 ```
 
 ### SSH not using YubiKey
-Make sure `SSH_AUTH_SOCK` points to the gpg-agent socket, not the macOS ssh-agent:
 ```bash
 echo $SSH_AUTH_SOCK
-# Should be: /Users/portaj/.gnupg/S.gpg-agent.ssh
+# Should be: ~/.gnupg/S.gpg-agent.ssh
 # NOT: /private/tmp/com.apple.launchd.xxx/Listeners
 ```
 
 ### PIN blocked after too many wrong attempts
-Use the Admin PIN to reset:
 ```bash
 gpg --card-edit
 gpg/card> admin
@@ -403,12 +395,11 @@ gpg/card> passwd
 ```
 
 ### Moving to a new machine
-You only need the **public key** — the private keys live on the YubiKey:
 ```bash
-# Import your public key on the new machine
+# Import public key
 gpg --import public-key.asc
 
-# Tell GPG to look at the card for the private keys
+# Tell GPG to look at the card
 gpg --card-status
 
 # Trust the key
@@ -420,26 +411,34 @@ gpg> quit
 
 Then run `init.sh` → `run.sh` to install GPG config, helpers, and signing defaults.
 
+### YubiKey dies or is lost
+1. Revoke the old subkeys using your offline master key backup
+2. Generate new subkeys, move them to a new YubiKey
+3. Update GitHub with the new GPG/SSH public keys
+4. This is a legitimate operational model, not a failure
+
 ---
 
-## Summary: What Enforces What
+## Enforcement Summary
 
 | Layer | What it does | Bypassable? |
 |---|---|---|
-| `generate_gitconfig.sh` | Sets `commit.gpgsign = true`, `tag.gpgsign = true` | Yes — `--no-gpg-sign`, editing `~/.gitconfig`, or another machine |
-| YubiKey touch policy | Requires physical touch per signature | No — hardware-enforced |
-| YubiKey PIN policy (`always`) | Requires PIN per signature | No — hardware-enforced |
-| GitHub ruleset / branch protection | Rejects unsigned pushes | No — server-enforced |
+| `generate_gitconfig.sh` | `commit.gpgsign = true`, `tag.gpgsign = true` | Yes — `--no-gpg-sign`, editing config, other machine |
+| YubiKey touch `fixed` | Physical touch for every sig and auth | No — hardware-enforced, cannot be turned off |
+| YubiKey PIN `always` | PIN required for every signature | No — hardware-enforced |
+| `ignore-cache-for-signing` | Agent never caches signing PIN | No — agent-enforced |
+| Short SSH cache TTLs (60s/300s) | Minimizes session reuse window | No — agent-enforced |
+| GitHub ruleset | Rejects unsigned pushes | No — server-enforced |
 
-**All four layers together** give you: every commit is signed, signing requires your YubiKey (which you possess), the YubiKey requires your PIN (which you know) and your touch (which proves presence), and the server rejects anything that doesn't meet these requirements.
+**All layers together:** every commit is signed, signing requires your YubiKey (possession), the YubiKey requires your PIN (knowledge) and your touch (presence), the agent never caches signing credentials, and the server rejects anything unsigned.
 
 ---
 
 ## References
 
 - [YubiKey Guide (drduh)](https://github.com/drduh/YubiKey-Guide) — the definitive reference
+- [ykman OpenPGP commands (Yubico docs)](https://docs.yubico.com/software/yubikey/tools/ykman/OpenPGP_Commands.html) — touch policies, PIN policies
+- [GPG Agent Options (GnuPG docs)](https://www.gnupg.org/documentation/manuals/gnupg/Agent-Options.html) — cache TTLs, ignore-cache-for-signing
 - [GPG + Git signing (GitHub docs)](https://docs.github.com/en/authentication/managing-commit-signature-verification)
 - [Telling Git about your signing key (GitHub docs)](https://docs.github.com/en/authentication/managing-commit-signature-verification/telling-git-about-your-signing-key)
 - [Available rules for rulesets (GitHub docs)](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/available-rules-for-rulesets)
-- [ykman OpenPGP commands (Yubico docs)](https://docs.yubico.com/software/yubikey/tools/ykman/OpenPGP_Commands.html)
-- [GnuPG documentation](https://www.gnupg.org/documentation/)
