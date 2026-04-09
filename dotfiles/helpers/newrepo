@@ -129,8 +129,7 @@ mkdir -p "$parent_dir"
 mkdir -p "$target_dir"
 cd "$target_dir"
 
-git init >/dev/null
-git branch -M main >/dev/null 2>&1 || true
+git init -b main >/dev/null
 
 cat > README.md <<README
 # $repo_dir_name

@@ -41,14 +41,7 @@ fi
 # gh cli extensions
 gh extension install vilmibm/gh-screensaver
 
-#gpg
-echo_green "Installing gpg stuffs..."
-if [[ $OS == 'darwin' ]]; then
-  pkg_install gnupg gpg-agent pinentry-mac
-else
-  pkg_install gnupg gpg-agent
-fi
-echo_green "Done."
+# GPG is now installed via $INSTALLATION_SOURCE_DIR/gpg.sh
 
 # git-lfs - https://git-lfs.github.com
 # TODO: Have a way to test if a command returns non-0 since this check ensures we always try to install git-lfs

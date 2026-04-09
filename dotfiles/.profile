@@ -139,10 +139,22 @@ alias destroy_the_child='df -h ; docker system df ; docker rm $(docker ps -a -q)
 #-- (PATH setup moved to .zshenv - all PATH manipulations are now centralized there) --#
 
 # family cookie recipes
-source $HOME/dotfiles/.secrets
+if [ -f "$HOME/dotfiles/.secrets" ]; then
+  source $HOME/dotfiles/.secrets
+else
+  echo "Warning: $HOME/dotfiles/.secrets not found - skipping secrets."
+fi
 
 # helpers (symlinked from $HOME/.helpers -> $HOME/dotfiles/helpers)
-source $HOME/.helpers/util.sh
+if [ -f "$HOME/.helpers/util.sh" ]; then
+  source $HOME/.helpers/util.sh
+else
+  echo "Warning: $HOME/.helpers/util.sh not found - run symlink.sh to set up helpers."
+fi
 
 # Git Config
-source $HOME/.helpers/generate_gitconfig.sh
+if [ -f "$HOME/.helpers/generate_gitconfig.sh" ]; then
+  source $HOME/.helpers/generate_gitconfig.sh
+else
+  echo "Warning: $HOME/.helpers/generate_gitconfig.sh not found - run symlink.sh to set up helpers."
+fi
