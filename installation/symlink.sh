@@ -69,3 +69,11 @@ if [ -f "$HOME/.chruby" ]; then
   mv "$HOME/.chruby" "$HOME/.chruby.old$NOW"
 fi
 ln -s "$HOME/dotfiles/.chruby" "$HOME/.chruby"
+
+# Link the helpers directory to $HOME/.helpers
+echo "Ensure symlink of '$HOME/.helpers' points to '$HOME/dotfiles/helpers'..."
+if [ -e "$HOME/.helpers" ]; then
+  echo "'$HOME/.helpers' already exists - ignoring."
+else
+  ln -s "$HOME/dotfiles/helpers" "$HOME/.helpers"
+fi

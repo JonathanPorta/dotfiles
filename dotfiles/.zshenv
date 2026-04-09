@@ -14,6 +14,12 @@ if [ -d "$HOME/bin" ] ; then
 fi
 
 
+# set PATH so it includes user's helpers if it exists
+if [ -d "$HOME/.helpers" ] ; then
+    PATH="$HOME/.helpers:$PATH"
+fi
+
+
 # set PATH so it includes user's private .local/bin if it exists
 if [ -d "$HOME/.local/bin" ] ; then
     PATH="$HOME/.local/bin:$PATH"

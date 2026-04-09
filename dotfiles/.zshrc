@@ -89,3 +89,7 @@ fi
 alias code-puppy="$HOME/.code-puppy-venv/bin/code-puppy"
 
 # zprof
+
+### MANAGED BY RANCHER DESKTOP START (DO NOT EDIT)
+export PATH="/Users/portaj/.rd/bin:$PATH"
+### MANAGED BY RANCHER DESKTOP END (DO NOT EDIT)

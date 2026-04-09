@@ -16,6 +16,9 @@ cat <<EOF > $HOME/.gitconfig
   excludesfile = $HOME/.gitignore_global
   pager = less -F -X
 
+[init]
+  defaultBranch = main
+
 [help]
   autocorrect = 1
 
@@ -79,8 +82,8 @@ cat <<EOF > $HOME/.gitconfig
 # insteadOf = ssh://git@github.com/
 # insteadOf = git@github.com:
 
-[url "ssh://git@$WORK_GH_HOSTNAME/"]
-  username = $WORK_GH_USERNAME
-  insteadOf = https://$WORK_GH_HOSTNAME/
+#[url "ssh://git@$WORK_GH_HOSTNAME/"]
+#  username = $WORK_GH_USERNAME
+#  insteadOf = https://$WORK_GH_HOSTNAME/
 
 EOF

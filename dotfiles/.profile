@@ -141,8 +141,8 @@ alias destroy_the_child='df -h ; docker system df ; docker rm $(docker ps -a -q)
 # family cookie recipes
 source $HOME/dotfiles/.secrets
 
-# helpers
-source $HOME/dotfiles/util.sh
+# helpers (symlinked from $HOME/.helpers -> $HOME/dotfiles/helpers)
+source $HOME/.helpers/util.sh
 
 # Git Config
-source $HOME/dotfiles/generate_gitconfig.sh
+source $HOME/.helpers/generate_gitconfig.sh
