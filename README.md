@@ -35,7 +35,7 @@ curl -fsSL https://raw.githubusercontent.com/JonathanPorta/dotfiles/master/init.
 
 **4. Restart your shell, then finish setup:**
 ```bash
-zsh -lc "$HOME/devel/portaj/dotfiles/run.sh"
+zsh -lc "$HOME/devel/$USER/dotfiles/run.sh"
 ```
 
 ## Configuration
@@ -114,7 +114,7 @@ After `init.sh` completes, restart your shell and run `run.sh` (see below).
 | **Destructive?** | Re-runs `symlink.sh` (same backup behavior as `init.sh`). |
 
 ```bash
-zsh -lc "$HOME/devel/portaj/dotfiles/run.sh"
+zsh -lc "$HOME/devel/$USER/dotfiles/run.sh"
 ```
 
 > **Note:** `run.sh` expects to run under `zsh` with a login shell so that the full environment (Homebrew PATH, etc.) is available.

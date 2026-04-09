@@ -48,7 +48,7 @@ fi
 GH_USERNAME=${GH_USERNAME:-JonathanPorta}
 SSH_DIR=${HOME_DIR}/.ssh
 
-# Copy of source $HOME/devel/portaj/dotfiles/installation/lib/vars.sh in case it doesn't exist yet!
+# Bootstrap vars (before installation/include/vars.sh is available)
 export DEVEL="$HOME_DIR/devel/$LOCAL_USERNAME"
 export DOTFILES_CHECKOUT="$DEVEL/dotfiles"
 export NOW=$(date -u +%s)
@@ -99,10 +99,15 @@ else
   git clone https://github.com/${GH_USERNAME}/dotfiles.git $DOTFILES_CHECKOUT
 fi
 
-echo "Ensure symlink of '$HOME_DIR/dotfiles' points to '$DOTFILES_CHECKOUT/dotfiles $HOME_DIR/dotfiles'..."
-# if there is no dotfiles directory under $HOME - link to the dotfiles subfolder in our repo
-if [ ! -d "$HOME_DIR/dotfiles" ]; then
-  ln -s $DOTFILES_CHECKOUT/dotfiles $HOME_DIR/dotfiles
+echo "Ensure symlink of '$HOME_DIR/dotfiles' points to '$DOTFILES_CHECKOUT/dotfiles'..."
+if [ -L "$HOME_DIR/dotfiles" ] && [ "$(readlink "$HOME_DIR/dotfiles")" = "$DOTFILES_CHECKOUT/dotfiles" ]; then
+  echo "'$HOME_DIR/dotfiles' already points to '$DOTFILES_CHECKOUT/dotfiles' - nothing to do."
+elif [ -e "$HOME_DIR/dotfiles" ] || [ -L "$HOME_DIR/dotfiles" ]; then
+  echo "WARNING: '$HOME_DIR/dotfiles' exists but does not point to '$DOTFILES_CHECKOUT/dotfiles' - relinking."
+  mv "$HOME_DIR/dotfiles" "$HOME_DIR/dotfiles.old$NOW"
+  ln -s "$DOTFILES_CHECKOUT/dotfiles" "$HOME_DIR/dotfiles"
+else
+  ln -s "$DOTFILES_CHECKOUT/dotfiles" "$HOME_DIR/dotfiles"
 fi
 
 $DOTFILES_CHECKOUT/installation/symlink.sh

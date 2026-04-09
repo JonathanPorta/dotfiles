@@ -20,11 +20,11 @@ fi
 # export variables that the other scripts will need
 # we do this weird cd stuff in order to solve for weird ways this script might get called.
 # there may be a better way to handle this, but, this seems to work for now.
-# TODO: Consider making the username $USER, an arg, or hardcode to jonathanporta (matches gh)
+# Respect already-exported values (e.g. from init.sh) to support non-default usernames.
 export INCLUDE_DIR=$(cd $(dirname "$0") && pwd)
 export INSTALLATION_SOURCE_DIR="$(cd "$INCLUDE_DIR" && cd ../ && pwd)"
-export DEVEL_DIR="$HOME/devel/portaj"
-export DOTFILES_CHECKOUT="$DEVEL_DIR/dotfiles"
+export DEVEL_DIR="${DEVEL_DIR:-$HOME/devel/${USER:-portaj}}"
+export DOTFILES_CHECKOUT="${DOTFILES_CHECKOUT:-$DEVEL_DIR/dotfiles}"
 export NOW=$(date -u +%s)
 export PKG_INSTALLER=$PKG_INSTALLER
 export OS=$OS
