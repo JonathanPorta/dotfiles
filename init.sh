@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -eo pipefail
 
 usage() {
   cat <<HELP
@@ -139,7 +139,12 @@ fi
 echo "Ensure authorized keys are synced to local authorized_keys..."
 mkdir -p $SSH_DIR
 # we want to be able to run this and update the authorized keys with whatever we have on GH
-curl https://api.github.com/users/${GH_USERNAME}/keys | jq -r '.[] | .key' > $SSH_DIR/authorized_keys
+FETCHED_KEYS=$(curl -fsSL "https://api.github.com/users/${GH_USERNAME}/keys" | jq -r '.[] | select(.key != null and .key != "") | .key')
+if [[ -z "$FETCHED_KEYS" ]]; then
+  echo "Error: No valid SSH keys found for GitHub user '${GH_USERNAME}'. authorized_keys not written."
+  exit 1
+fi
+echo "$FETCHED_KEYS" > $SSH_DIR/authorized_keys
 echo "Updated '$SSH_DIR/authorized_keys' to:"
 cat $SSH_DIR/authorized_keys
 echo "Truncated and wrote $(cat $SSH_DIR/authorized_keys | wc -l) keys to '$SSH_DIR/authorized_keys'."
