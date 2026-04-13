@@ -11,10 +11,15 @@ cat <<EOF > $HOME/.gitconfig
 [user]
   name = Jonathan Porta
   email = jonathan@jonathanporta.com
+  # Set this to your GPG signing subkey ID (append ! to force that exact subkey)
+  # signingkey = 0xABCD1234ABCD1234!
 
 [core]
   excludesfile = $HOME/.gitignore_global
   pager = less -F -X
+
+[init]
+  defaultBranch = main
 
 [help]
   autocorrect = 1
@@ -35,7 +40,7 @@ cat <<EOF > $HOME/.gitconfig
   s = status
   ss = status -sb
   p = push
-  clean-branches = !sh -c 'git branch --merged master | grep -v master | xargs -n 1 git branch -d'
+  clean-branches = !sh -c 'git branch --merged main | grep -v main | xargs -n 1 git branch -d'
   up = pull --rebase --autostash
 
 [branch]
@@ -70,6 +75,12 @@ cat <<EOF > $HOME/.gitconfig
 [gpg]
   program = gpg2
 
+[commit]
+#  gpgsign = true
+
+[tag]
+#  gpgsign = true
+
 [url "ssh://git@github.com/"]
   username = jonathanporta
   insteadOf = https://github.com/
@@ -79,8 +90,8 @@ cat <<EOF > $HOME/.gitconfig
 # insteadOf = ssh://git@github.com/
 # insteadOf = git@github.com:
 
-[url "ssh://git@$WORK_GH_HOSTNAME/"]
-  username = $WORK_GH_USERNAME
-  insteadOf = https://$WORK_GH_HOSTNAME/
+#[url "ssh://git@$WORK_GH_HOSTNAME/"]
+#  username = $WORK_GH_USERNAME
+#  insteadOf = https://$WORK_GH_HOSTNAME/
 
 EOF

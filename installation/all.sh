@@ -8,6 +8,7 @@ source $(cd $(dirname "$0") && pwd)/include/lib.sh
 # TODO: Verify that we're in zsh: https://stackoverflow.com/questions/9910966/how-to-get-shell-to-self-detect-using-zsh-or-bash#9911082
 echo_cyan "From here on, we expect to be running in ZSH not BASH. If errors happen, verify that this is running in ZSH and not BASH."
 $INSTALLATION_SOURCE_DIR/util.sh
+$INSTALLATION_SOURCE_DIR/gpg.sh
 $INSTALLATION_SOURCE_DIR/oh-my-zsh.sh
 
 #TODO: Move to rancher or the other one

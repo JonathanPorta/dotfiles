@@ -73,10 +73,12 @@ fi
 # Moved to .profile
 # source $HOME/dotfiles/generate_gitconfig.sh
 
-if command -v complete >/dev/null 2>&1; then
+if command -v complete >/dev/null 2>&1 && [ -f /usr/bin/terraform ]; then
   complete -o nospace -C /usr/bin/terraform terraform
 fi
-# complete -C '/usr/local/bin/aws_completer' aws
+if command -v complete >/dev/null 2>&1 && [ -f /usr/local/bin/aws_completer ]; then
+  complete -C '/usr/local/bin/aws_completer' aws
+fi
 
 SPACESHIP_PROMPT_ASYNC=true
 
@@ -86,6 +88,8 @@ if [ -f "$HOME/dotfiles/.profile" ]; then
 fi
 
 # Added by Code Puppy installer on Fri Mar 20 15:06:43 PDT 2026
-alias code-puppy="$HOME/.code-puppy-venv/bin/code-puppy"
+if [ -f "$HOME/.code-puppy-venv/bin/code-puppy" ]; then
+  alias code-puppy="$HOME/.code-puppy-venv/bin/code-puppy"
+fi
 
 # zprof

@@ -1,5 +1,32 @@
 #!/bin/bash
-set -e
+set -eo pipefail
+
+usage() {
+  cat <<HELP
+Usage:
+  $(basename "$0") [-h|--help] [--headless]
+
+First-run bootstrap for a fresh machine. Ensures SSH keys exist, syncs
+GitHub public keys to authorized_keys, and enables sshd.
+
+Options:
+  -h, --help    Show this help text.
+  --headless    Skip interactive confirmation prompts (use detected defaults).
+
+Environment:
+  HEADLESS      Set to "true" to skip prompts (same as --headless).
+  USER          Override the local username detection.
+  HOME          Override the home directory detection.
+  GH_USERNAME   Override the GitHub username (default: JonathanPorta).
+HELP
+}
+
+for arg in "$@"; do
+  case "$arg" in
+    -h|--help) usage; exit 0 ;;
+    --headless) HEADLESS=true ;;
+  esac
+done
 
 # Use dynamic username and home directory depending on the OS and available environment variables
 if [[ -z "${USER}" ]]; then
@@ -18,7 +45,7 @@ else
     HOME_DIR=${HOME}
 fi
 
-GH_USERNAME=JonathanPorta
+GH_USERNAME=${GH_USERNAME:-JonathanPorta}
 SSH_DIR=${HOME_DIR}/.ssh
 
 echo "Setting up this machine using:"
@@ -26,6 +53,17 @@ echo "  Local Username: ${LOCAL_USERNAME}"
 echo "  Github Username: ${GH_USERNAME}"
 echo "  Home Directory: ${HOME_DIR}"
 echo "  SSH Directory: ${SSH_DIR}"
+
+if [[ "${HEADLESS}" != "true" ]]; then
+  echo ""
+  read -r -p "Do these values look correct? [Y/n]: " confirm
+  case "${confirm}" in
+    [nN]|[nN][oO])
+      echo "Aborting. Set USER, HOME, or GH_USERNAME environment variables to override, then re-run."
+      exit 1
+      ;;
+  esac
+fi
 
 echo "Ensure .ssh directory exists, is owned by $LOCAL_USERNAME, and has correct permissions"
 mkdir -p ${SSH_DIR}
@@ -70,7 +108,12 @@ fi
 
 echo "Ensure GitHub keys are synced to local authorized_keys..."
 # we want to be able to run this and update the authorized keys with whatever we have on GH
-curl https://api.github.com/users/${GH_USERNAME}/keys | jq -r '.[] | .key' > ${SSH_DIR}/authorized_keys
+FETCHED_KEYS=$(curl -fsSL "https://api.github.com/users/${GH_USERNAME}/keys" | jq -r '.[] | select(.key != null and .key != "") | .key')
+if [[ -z "$FETCHED_KEYS" ]]; then
+  echo "Error: No valid SSH keys found for GitHub user '${GH_USERNAME}'. authorized_keys not written."
+  exit 1
+fi
+echo "$FETCHED_KEYS" > ${SSH_DIR}/authorized_keys
 sudo chown ${LOCAL_USERNAME} ${SSH_DIR}/authorized_keys
 echo "Updated '${SSH_DIR}/authorized_keys' to:"
 cat ${SSH_DIR}/authorized_keys

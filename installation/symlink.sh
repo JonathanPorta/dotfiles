@@ -69,3 +69,17 @@ if [ -f "$HOME/.chruby" ]; then
   mv "$HOME/.chruby" "$HOME/.chruby.old$NOW"
 fi
 ln -s "$HOME/dotfiles/.chruby" "$HOME/.chruby"
+
+# Link the helpers directory to $HOME/.helpers
+echo "Ensure symlink of '$HOME/.helpers' points to '$HOME/dotfiles/helpers'..."
+if [ -L "$HOME/.helpers" ] && [ "$(readlink "$HOME/.helpers")" = "$HOME/dotfiles/helpers" ]; then
+  echo "'$HOME/.helpers' already points to '$HOME/dotfiles/helpers' - nothing to do."
+elif [ -e "$HOME/.helpers" ] || [ -L "$HOME/.helpers" ]; then
+  echo "WARNING: '$HOME/.helpers' exists but does not point to '$HOME/dotfiles/helpers' - relinking."
+  mv "$HOME/.helpers" "$HOME/.helpers.old$NOW"
+  ln -s "$HOME/dotfiles/helpers" "$HOME/.helpers"
+else
+  ln -s "$HOME/dotfiles/helpers" "$HOME/.helpers"
+fi
+
+# GPG configuration is handled by installation/gpg.sh
