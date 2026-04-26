@@ -31,6 +31,10 @@ cat <<EOF > $HOME/.gitconfig
   default = upstream
   autoSetupRemote = true
 
+[fetch]
+  prune = true
+  pruneTags = true
+
 [alias]
   lg = log --color --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr)%C(bold blue)<%an>%Creset' --abbrev-commit
   ll = log --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit
@@ -40,8 +44,27 @@ cat <<EOF > $HOME/.gitconfig
   s = status
   ss = status -sb
   p = push
+
   clean-branches = !sh -c 'git branch --merged main | grep -v main | xargs -n 1 git branch -d'
-  up = pull --rebase --autostash
+
+  up = "!f() { \\
+    git pull --rebase --autostash && \\
+    git prune-gone; \\
+  }; f"
+
+  prune-gone = "!f() { \\
+    git fetch --all --prune; \\
+    current=\$(git symbolic-ref --quiet --short HEAD || true); \\
+    git for-each-ref --format='%(refname:short) %(upstream:track)' refs/heads | \\
+      awk '\$2 == \"[gone]\" { print \$1 }' | \\
+      while read branch; do \\
+        if [ \"\$branch\" = \"\$current\" ]; then \\
+          echo \"Skipping current branch with gone upstream: \$branch\"; \\
+        else \\
+          git branch -d \"\$branch\"; \\
+        fi; \\
+      done; \\
+  }; f"
 
 [branch]
   autosetuprebase = always
