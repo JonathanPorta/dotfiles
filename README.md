@@ -1,149 +1,328 @@
-# dotfiles
+# ai-rules
 
-My configuration files for some of my tools.
+Structured rules for AI-assisted development. Forces codebase understanding,
+acceptance criteria, validation-before-implementation, and human gates at
+critical decision points. Includes a first-class design domain for user-facing
+UX/UI work.
 
-## Supported Platforms
+## The Problem
 
-- **macOS** (Apple Silicon and Intel)
-- **Fedora Linux**
+AI coding agents will happily generate code without understanding the codebase,
+skip validation, and mark their own work complete. This leads to features that
+compile but don't work, tasks that are checked off but not verified, and scope
+that silently drifts.
 
-## Quick Start
+For user-facing work, the failure mode is different but just as expensive:
+agents optimize for a pretty hero screen, skip state design, ignore trust and
+error handling, and produce screens that look polished but fall apart in real use.
 
-**1. Bootstrap SSH on a fresh machine:**
-```bash
-# Interactive (confirms detected values before proceeding):
-curl -fsSL https://raw.githubusercontent.com/JonathanPorta/dotfiles/master/hello-world.sh | bash
+## The Solution
 
-# Headless (skips confirmation, uses defaults):
-curl -fsSL https://raw.githubusercontent.com/JonathanPorta/dotfiles/master/hello-world.sh | HEADLESS=true bash
-```
+A set of mandatory rules that enforce:
 
-**2. Add the generated key to GitHub:**
-```bash
-cat ~/.ssh/id_ed25519.pub
-# Copy output → GitHub → Settings → SSH and GPG keys → New SSH key
-```
+1. **Codebase analysis before proposals** — AI must document its understanding and get human confirmation
+2. **Human-approved acceptance criteria** before any code is written
+3. **AI-generated validation steps** before each task is implemented
+4. **Observable proof** of task completion (not self-assessment)
+5. **Human gates** at critical decision points
+6. **Phased project planning** for multi-feature initiatives
+7. **Session state persistence** so context loss doesn't mean knowledge loss
+8. **Design workflow discipline** for user-facing UX/UI work: intent, journeys, states, trust, hierarchy, and critique
 
-**3. Install dotfiles and dev tools:**
-```bash
-# Interactive:
-curl -fsSL https://raw.githubusercontent.com/JonathanPorta/dotfiles/master/init.sh | bash
+## Design Domain
 
-# Headless:
-curl -fsSL https://raw.githubusercontent.com/JonathanPorta/dotfiles/master/init.sh | HEADLESS=true bash
-```
+The design rules are for work involving:
+- product UX
+- screen and flow design
+- information architecture
+- design systems
+- AI-generated interface concepts
+- critique of existing products
 
-**4. Restart your shell, then finish setup:**
-```bash
-zsh -lc "$HOME/devel/$USER/dotfiles/run.sh"
-```
+They are not a replacement for engineering rules. They are a companion domain
+that keeps AI from generating glossy nonsense with no operational backbone.
 
-## Configuration
+Start with:
+- [Design Principles](rules/design/30-design-principles.md)
+- [UX Brief and Intent](rules/design/31-ux-brief-and-intent.md)
+- [User Journeys and State Inventory](rules/design/33-user-journeys-and-state-inventory.md)
+- [Screen Review and Critique](rules/design/36-screen-review-and-critique.md)
 
-All bootstrap scripts detect the local username, home directory, and GitHub username automatically. Before running, they display the detected values and ask for confirmation:
+## Install
 
-```
-Setting up this machine using:
-  Local Username: portaj
-  Github Username: JonathanPorta
-  Home Directory: /Users/portaj
-  SSH Directory: /Users/portaj/.ssh
-
-Do these values look correct? [Y/n]:
-```
-
-Override any value by setting environment variables:
+### One-liner (recommended)
 
 ```bash
-GH_USERNAME=myghuser ./hello-world.sh
-USER=deploy HOME=/srv/deploy ./init.sh
+curl -fsSL https://raw.githubusercontent.com/JonathanPorta/ai-rules/main/install.sh | bash
 ```
 
-For unattended/CI usage, skip the confirmation prompt entirely:
+This will:
+- **Fresh install:** `git subtree add` the latest release to `.ai-rules/`
+- **Update:** `git subtree pull` to the latest release if already installed
+- **Abort:** warn and exit if `.ai-rules/` exists but wasn't installed by this script
+
+### Manual: Git Subtree
 
 ```bash
-HEADLESS=true ./init.sh
-# or
-./init.sh --headless
+# Add as a subtree (pin to a release tag)
+git subtree add --prefix=.ai-rules https://github.com/JonathanPorta/ai-rules.git v1.0.0 --squash
+
+# Update later
+git subtree pull --prefix=.ai-rules https://github.com/JonathanPorta/ai-rules.git v1.2.0 --squash
 ```
 
----
-
-## Scripts
-
-### `hello-world.sh` — Bootstrap SSH
-
-| | |
-|---|---|
-| **Purpose** | First-run setup for a brand-new machine. Generates an ed25519 SSH key pair, syncs your GitHub public keys into `authorized_keys`, and enables `sshd`. |
-| **Idempotency** | **Safe to re-run.** Skips key generation if `~/.ssh/id_ed25519` already exists. Overwrites `authorized_keys` with the latest keys from GitHub on every run (intentional — keeps keys in sync). |
-| **Destructive?** | Truncates `~/.ssh/authorized_keys` each run. |
+### Manual: Git Submodule
 
 ```bash
-./hello-world.sh            # interactive
-./hello-world.sh --headless # unattended
-./hello-world.sh --help     # usage info
+git submodule add https://github.com/JonathanPorta/ai-rules.git .ai-rules
 ```
 
----
-
-### `init.sh` — Clone Repo & Symlink Dotfiles
-
-| | |
-|---|---|
-| **Purpose** | Clones this repo (via HTTPS), symlinks shell configs (`.zshrc`, `.zshenv`, `.zprofile`, `.gitignore_global`, `.chruby`, `.helpers`) into `$HOME`, installs `jq` and `zsh` if missing, and syncs GitHub `authorized_keys`. |
-| **Idempotency** | **Mostly safe to re-run.** If the repo already exists it does a `git fetch` instead of cloning. Existing dotfiles in `$HOME` are renamed to `*.old<timestamp>` before re-linking, so nothing is silently lost. |
-| **Destructive?** | Moves existing `.zshrc`, `.zshenv`, `.zprofile`, `.gitignore_global`, `.chruby` to timestamped backups. Truncates `authorized_keys`. |
+### Manual: Just copy it
 
 ```bash
-./init.sh            # interactive
-./init.sh --headless # unattended
-./init.sh --help     # usage info
+cp -r ai-rules/ /path/to/your/project/.ai-rules/
 ```
 
-After `init.sh` completes, restart your shell and run `run.sh` (see below).
+## Platform Setup
 
----
-
-### `run.sh` — Install Dev Tools
-
-| | |
-|---|---|
-| **Purpose** | Installs applications and dev tools: oh-my-zsh + plugins, vim, gpg, git-lfs, gh CLI, ruby, python, node, and more via Homebrew (macOS) or dnf (Fedora). Re-runs symlinks first. |
-| **Idempotency** | **Safe to re-run.** Package managers skip already-installed packages. Oh-my-zsh warns (but does not fail) if already present. |
-| **Destructive?** | Re-runs `symlink.sh` (same backup behavior as `init.sh`). |
+After installing, generate platform-specific config stubs:
 
 ```bash
-zsh -lc "$HOME/devel/$USER/dotfiles/run.sh"
+# Wire up for specific platforms
+.ai-rules/setup.sh --platforms cursor,windsurf,copilot
+
+# Wire up for all supported platforms
+.ai-rules/setup.sh --platforms all
+
+# See what's supported
+.ai-rules/setup.sh --list
 ```
 
-> **Note:** `run.sh` expects to run under `zsh` with a login shell so that the full environment (Homebrew PATH, etc.) is available.
+The setup script creates thin stub files at each platform's canonical config
+location. These stubs reference `.ai-rules/AGENTS.md` and leave room for
+project-specific additions.
 
----
+### Platform Details
 
-## Helpers (`~/.helpers`)
+| Platform | Config Location | Format |
+|----------|----------------|--------|
+| Claude Code | `CLAUDE.md` (root) | Plain markdown; uses `@.ai-rules/AGENTS.md` import |
+| Cursor | `.cursor/rules/ai-rules.mdc` | MDC with `alwaysApply: true` frontmatter |
+| Windsurf | `.windsurf/rules/ai-rules.md` | Markdown with `trigger: always_on` frontmatter |
+| GitHub Copilot | `.github/copilot-instructions.md` | Plain markdown |
+| Amp | `AGENTS.md` (root) | Plain markdown; Amp walks parent dirs |
 
-The `dotfiles/helpers/` directory is symlinked to `~/.helpers` and added to `$PATH`. This gives you executable helper scripts available as commands from any directory.
+Stub bodies live in `templates/platform-stubs/`. To add a platform, edit
+`PLATFORMS_TABLE` in `setup.sh` and drop a matching template file there.
 
-| Script | Description |
-|---|---|
-| `newrepo` | Creates a new local+GitHub repo with ai-rules subtree pre-installed. Interactive prompts for name, location, and visibility. |
-| `generate_gitconfig.sh` | Generates `~/.gitconfig` from a template (sourced automatically by `.profile` on shell startup). |
-| `util.sh` | Shell utility functions like `externaldns` and `curlr` (sourced automatically by `.profile`). |
+## Role-Based Agents
 
-```bash
-newrepo                 # run from anywhere
-newrepo --help          # usage info
-newrepo my-app ~/src    # non-interactive
+The `agents/` directory contains four complementary agent definitions that
+mirror the workflow's human gates. Each role has scoped tool access to
+enforce separation of planning, validation, implementation, and review.
+
+| Agent | Tools | Purpose |
+|-------|-------|---------|
+| [planner](agents/planner.md) | read, search | Explores the codebase, produces analysis, and generates PRDs with acceptance criteria. Does not write code. |
+| [implementer](agents/implementer.md) | read, search, edit, execute | Decomposes approved PRDs into tasks and implements them using validation-first development. |
+| [validator](agents/validator.md) | read, search, edit, execute | Writes validation plans and test cases before implementation, then executes them to verify task completion. |
+| [reviewer](agents/reviewer.md) | read, search, execute | Reviews completed work against acceptance criteria and produces verification evidence tables. |
+
+These files are instruction prompts, not platform-native agent definitions.
+Adapt them to your agent runner of choice — for example, GitHub Copilot's
+custom agents feature requires `*.agent.md` files with specific YAML
+frontmatter (prompt, tools, MCP servers), which is a per-project wrapping
+step beyond what `setup.sh` generates.
+
+These agents divide the ai-rules workflow into distinct roles with appropriate
+tool access:
+
+- **planner** handles Phases 1–2 (PRD and task generation). Limited to read-only
+  tools to enforce human gates before any code is written.
+- **validator** handles the validation-first discipline from Phase 3. Writes
+  validation plans, creates failing tests (red phase), and runs all validation
+  checks after implementation (green phase). Can write test files but not
+  implementation code.
+- **implementer** handles Phase 3 implementation. Takes the validator's failing
+  tests and validation plan as a contract, then writes the code to make them pass.
+- **reviewer** handles Phase 4 (feature verification). Has execute access to
+  run tests independently but cannot modify code — enforcing separation between
+  implementation and review.
+
+## Structure
+
+```text
+.ai-rules/
+  .version                         # Origin and version tracking
+  AGENTS.md                        # Entry point and core principles
+  setup.sh                         # Platform stub generator
+  install.sh                       # curl|bash installer
+  docs/
+    overview.md                    # Why the framework exists and what it covers
+    how-to-use.md                  # Recommended workflow by task type
+    rule-loading-order.md          # How AI should discover and apply rules
+    examples/
+      design-example.md            # Example of the design rules in practice
+  rules/
+    00-project-planning.md         # Phased planning for multi-feature projects
+    01-workflow-overview.md        # End-to-end process with human gates
+    02-prd.md                      # Codebase analysis, PRD generation, acceptance criteria
+    03-task-generation.md          # Task decomposition with validation criteria
+    04-validation-first.md         # Write validation before implementation
+    05-task-execution.md           # Execute tasks, track progress, verify completion
+    06-session-state.md            # Persist context across sessions
+    07-command-surface.md          # Required command and tool invocation boundaries
+    08-tdd-enforcement.md          # (Optional) Red-then-green TDD evidence
+    design/
+      30-design-principles.md      # Design principles for coherent user-facing work
+      31-ux-brief-and-intent.md    # User, job, emotional goal, constraints, success
+      32-information-architecture.md
+      33-user-journeys-and-state-inventory.md
+      34-trust-feedback-and-confirmation.md
+      35-visual-system-and-hierarchy.md
+      36-screen-review-and-critique.md
+      37-accessibility-and-legibility.md
+      38-design-memory-and-consistency.md
+  agents/
+    planner.md                     # PRD and project planning agent
+    validator.md                   # Validation plan and test-first agent
+    implementer.md                 # Validation-first task implementation agent
+    reviewer.md                    # Feature verification and AC review agent
+  scripts/
+    tdd-check.sh                   # (Optional) Git timestamp TDD verifier
+  templates/
+    project-plan.md                # Blank project plan template
+    prd.md                         # Blank PRD template
+    tasks.md                       # Blank task list template
+    session-state.md               # Blank session state template
+    design/
+      ux-brief-template.md         # Blank UX brief
+      state-inventory-template.md  # Flow and state inventory
+      screen-spec-template.md      # Single-screen specification
+      design-review-checklist.md   # Structured critique checklist
+      visual-audit-template.md     # Audit an existing product or screen set
+    platform-stubs/
+      claude.md                    # CLAUDE.md stub with @.ai-rules/AGENTS.md import
+      cursor.mdc                   # Cursor MDC stub (alwaysApply: true)
+      windsurf.md                  # Windsurf stub (trigger: always_on)
+      copilot.md                   # .github/copilot-instructions.md stub
+      amp.md                       # Root AGENTS.md stub for Amp
+  examples/
+    sample-ux-brief.md             # Filled UX brief example
+    sample-state-inventory.md      # Filled state inventory example
+    sample-design-review.md        # Filled design critique example
 ```
 
-## Prerequisites
+## How It Works
 
-- `curl` (pre-installed on macOS and most Linux)
-- `sudo` access
-- **macOS:** [Homebrew](https://brew.sh/) and Xcode Command Line Tools (`xcode-select --install`)
-- **Linux:** `dnf` package manager (Fedora)
-- `jq` and `zsh` are auto-installed if missing (via `brew` or `dnf`)
+### Single Feature Workflow
 
-## TODO
-- [ ] Add ~/.aws and similar credentials — tie in with the .secrets format.
+```text
+Feature Request
+  → Codebase Analysis (AI writes, human reviews)     ← GATE
+  → PRD with Acceptance Criteria (human approves)    ← GATE
+  → Task Decomposition (human confirms parent tasks) ← GATE
+  → For each task:
+      → Validation plan (AI writes before coding)
+      → Implementation
+      → Validation execution (pass/fail reported)
+  → Feature Verification (human confirms ACs met)    ← GATE
+```
+
+### Multi-Feature Project Workflow
+
+```text
+Project Vision
+  → Project Brief (human approves)                   ← GATE
+  → Phased Plan with Dependencies (human approves)  ← GATE
+  → Phase PRDs (human approves each)                ← GATE
+  → Phase Task Lists (human confirms parent tasks)  ← GATE
+  → Implementation + Validation per task
+  → Phase Verification                               ← GATE
+  → Next Phase
+```
+
+### Design Workflow
+
+```text
+Design Request
+  → UX Brief (user, job, emotional goal, constraints)
+  → IA + Journey Mapping
+  → State Inventory
+  → Screen Specs / Concept Direction
+  → Trust + Feedback Review
+  → Accessibility + Legibility Review
+  → Design Critique with explicit tradeoffs
+```
+
+The core rule for design work is simple: **do not polish a screen before you
+understand the flow and state model that screen belongs to.**
+
+## Suggested Entry Points
+
+| Work Type | Start Here |
+|-----------|------------|
+| Single feature implementation | `rules/02-prd.md` |
+| Multi-feature initiative | `rules/00-project-planning.md` |
+| User-facing product or UX work | `rules/design/31-ux-brief-and-intent.md` |
+| Critique of an existing app or screen set | `templates/design/visual-audit-template.md` |
+| Structured design review | `rules/design/36-screen-review-and-critique.md` |
+
+## Documentation
+
+- [Overview](docs/overview.md)
+- [How to Use](docs/how-to-use.md)
+- [Rule Loading Order](docs/rule-loading-order.md)
+- [Design Example](docs/examples/design-example.md)
+
+## The Three Types of Criteria
+
+| | Acceptance Criteria | Validation Criteria | Exit Criteria |
+|---|---|---|---|
+| **Owner** | Human | AI | Human + AI |
+| **Scope** | Feature-level | Task-level | Phase-level |
+| **When defined** | PRD phase | Pre-implementation | Project planning |
+| **What it answers** | "What does done mean?" | "How do we prove this task got us there?" | "What must be true to move to the next phase?" |
+| **Approval** | Required before any work | Human reviews if desired | Required before next phase |
+| **Mutability** | Only with human approval | AI refines as needed | Only with human approval |
+
+## Optional Rules
+
+Some rules are opt-in. They live in the repo but are disabled by default.
+To enable an optional rule, edit `AGENTS.md` and move it from the "Available"
+list to the "Enabled" list under the Optional Rules section.
+
+| Rule | What It Does | Enable When |
+|------|-------------|-------------|
+| [TDD Enforcement](rules/08-tdd-enforcement.md) | Requires red-then-green test evidence | Your team practices TDD and has test infrastructure |
+
+Optional rules also come with supporting tooling in `scripts/`:
+- `tdd-check.sh` — compares git timestamps to verify test-before-implementation ordering
+
+## Extending for Your Organization
+
+These rules are intentionally generic. Fork this repo to add:
+
+- Organization-specific coding standards
+- CI/CD pipeline validation steps
+- Project management tool integration (Jira, Linear, etc.)
+- Security and compliance checks
+- Infrastructure-specific validation patterns
+- Product design system conventions and review requirements
+
+Keep extensions in a separate file or subtree of files and reference them from
+your fork's `AGENTS.md`.
+
+## Versioning
+
+Releases are cut automatically on merge to `main`:
+- `BREAKING` or `major:` in commit message → major bump
+- `feat:` or `minor:` → minor bump
+- Everything else → patch bump
+
+The `.version` file tracks the installed version and origin, used by the
+installer to detect updates.
+
+## License
+
+Apache-2.0

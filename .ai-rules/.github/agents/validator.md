@@ -1,1 +1,0 @@
-../../agents/validator.md

@@ -1,6 +1,0 @@
-Host *.porta.codes
-        ForwardAgent yes
-
-Host portaj-*
-        ForwardAgent yes
-
