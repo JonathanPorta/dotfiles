@@ -110,6 +110,6 @@
 | Open Question (from PRD) | Resolution |
 |---|---|
 | 1. Generator wiring | `symlink.sh` only. Do **not** source from `.profile`. |
-| 2. Companion `sound` key | TBD via task 1.3 (schema lookup); fall-back is "uncomment only `customSoundFilePath` and let AC-6 catch it." |
+| 2. Companion `sound` key | **Resolved in task 1.3**: cmux schema enum for `notifications.sound` includes `"custom_file"` — that sentinel value is what tells cmux to use `customSoundFilePath`. Template sets both keys. |
 | 3. GUI drift warning | Not in v1 — silent overwrite (matches `generate_gitconfig.sh`). README note in task 5.3 makes this explicit. |
 | 4. Schema validation in generator | Not in v1 — `jq` parse check happens in task validations only. |
