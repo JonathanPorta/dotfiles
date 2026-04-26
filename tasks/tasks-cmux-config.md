@@ -62,28 +62,18 @@
     - `git check-ignore -v dotfiles/dotfiles/cmux-settings.json dotfiles/dotfiles/cmux-notification.wav` produces no stdout (exits 1). ✓
     - `stat -f '%z %m' ~/Downloads/help.wav` = `528296 1442468506` (matches pre-task). ✓
 
-- [ ] **2.0 Build the cmux settings generator helper** &nbsp; *Serves: AC-3*
-  - [ ] 2.1 Create `dotfiles/helpers/generate_cmux_settings.sh` patterned on `dotfiles/helpers/generate_gitconfig.sh`. Use `#!/usr/bin/env bash` and `set -eo pipefail`.
-  - [ ] 2.2 Implementation:
-    - Resolve `SCRIPT_GENERATOR_PATH` like `generate_gitconfig.sh` does (for the header comment).
-    - `mkdir -p "$HOME/.config/cmux"`.
-    - Read `$HOME/dotfiles/cmux-settings.json`.
-    - Substitute `__HOME__` → `$HOME` using `sed` with `|` as delimiter (paths contain `/`).
-    - Write the result to `$HOME/.config/cmux/settings.json`, prepended with a header line block:
-      ```
-      // This settings.json was generated via $SCRIPT_GENERATOR_PATH.
-      // Edit dotfiles/cmux-settings.json (the template), not this file.
-      ```
-    - Print one `Generating ...` line to stdout, mirroring `generate_gitconfig.sh`.
-  - [ ] 2.3 `chmod +x dotfiles/helpers/generate_cmux_settings.sh`.
-  - [ ] 2.4 Run it directly: `bash dotfiles/helpers/generate_cmux_settings.sh`; confirm rendered file.
-  - **Validates when:**
-    - `bash dotfiles/helpers/generate_cmux_settings.sh` exits 0.
-    - `grep -c '__HOME__' "$HOME/.config/cmux/settings.json"` outputs `0`.
-    - `head -2 "$HOME/.config/cmux/settings.json"` contains the literal substring `generated`.
-    - `grep -F "$HOME/.sounds/cmux-notification.wav" "$HOME/.config/cmux/settings.json"` matches at least one line.
-    - `sed 's://.*$::' "$HOME/.config/cmux/settings.json" | jq -e '.notifications.customSoundFilePath'` outputs the expanded path (string equal to `"$HOME/.sounds/cmux-notification.wav"`).
-    - `[ -f "$HOME/.config/cmux/settings.json" ] && [ ! -L "$HOME/.config/cmux/settings.json" ]` — regular file, not a symlink.
+- [x] **2.0 Build the cmux settings generator helper** &nbsp; *Serves: AC-3*
+  - [x] 2.1 Created `dotfiles/helpers/generate_cmux_settings.sh` (`#!/usr/bin/env bash`, `set -eo pipefail`).
+  - [x] 2.2 Reads `$HOME/dotfiles/cmux-settings.json`, prepends 3-line generated-by header, sed-substitutes `__HOME__` → `$HOME` with `|` delimiter, writes to `$HOME/.config/cmux/settings.json`. Errors loudly if template missing.
+  - [x] 2.3 `chmod +x` applied.
+  - [x] 2.4 Ran directly via `bash $HOME/dotfiles/helpers/generate_cmux_settings.sh`; rendered file looks correct.
+  - **Validates when (revised — `jq` step replaced with `grep -F`, see task 1.5 note):**
+    - `bash $HOME/dotfiles/helpers/generate_cmux_settings.sh` exits 0. ✓
+    - `grep -c '__HOME__' $HOME/.config/cmux/settings.json` outputs `0`. ✓
+    - `head -2 $HOME/.config/cmux/settings.json` contains the literal substring `generated`. ✓
+    - `grep -F "$HOME/.sounds/cmux-notification.wav" $HOME/.config/cmux/settings.json` matches one line. ✓
+    - `grep -F '"sound": "custom_file"' $HOME/.config/cmux/settings.json` matches one line. ✓
+    - `[ -f $HOME/.config/cmux/settings.json ] && [ ! -L $HOME/.config/cmux/settings.json ]` succeeds. ✓
 
 - [ ] **3.0 Wire the cmux block into `installation/symlink.sh`** &nbsp; *Serves: AC-4, AC-5, AC-7*
   - [ ] 3.1 Append a new block to `installation/symlink.sh` after the existing helpers-symlink block. Match surrounding style (`echo` for status lines, `bash` syntax, no `set -e` change).
