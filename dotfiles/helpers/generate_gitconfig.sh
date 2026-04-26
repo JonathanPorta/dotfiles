@@ -61,7 +61,7 @@ cat <<EOF > $HOME/.gitconfig
         if [ \"\$branch\" = \"\$current\" ]; then \\
           echo \"Skipping current branch with gone upstream: \$branch\"; \\
         else \\
-          git branch -d \"\$branch\"; \\
+          git branch -D \"\$branch\" && echo \"deleted \$branch ([gone] upstream)\"; \\
         fi; \\
       done; \\
   }; f"
