@@ -89,25 +89,21 @@
     - `cmp ~/Downloads/help.wav /Users/portaj/dotfiles/cmux-notification.wav` exits 0 after both runs. ✓
     - `~/Downloads/help.wav` `stat -f '%z %m'` = `528296 1442468506` after both runs. ✓
 
-- [ ] **4.0 End-to-end install + cmux behavior verification** &nbsp; *Serves: AC-6*
-  - [ ] 4.1 (Pre-check, AI-runnable) — confirm cmux app is installed: `[ -d /Applications/cmux.app ] || mdfind -name 'cmux.app' | head -1`. If cmux isn't installed, escalate to human; this AC cannot be tested otherwise.
-  - [ ] 4.2 (Manual) Quit cmux fully (it may cache settings on launch).
-  - [ ] 4.3 (Manual) Relaunch cmux. Open Settings UI; confirm no parse-error warning is shown and that `customSoundFilePath` field shows the resolved path (e.g. `/Users/portaj/.sounds/cmux-notification.wav`).
-  - [ ] 4.4 (Manual) Trigger a notification through cmux's normal mechanism (e.g. complete a long-running command in a workspace, or whichever trigger cmux uses).
-  - [ ] 4.5 (Manual) Confirm the custom `help.wav` plays — not the system default.
+- [x] **4.0 End-to-end install + cmux behavior verification** &nbsp; *Serves: AC-6*
+  - [x] 4.1 cmux app located at `/Applications/cmux.app`.
+  - [x] 4.2–4.5 (Manual, human-verified): cmux relaunched, settings loaded without errors, custom `help.wav` plays on notification. Confirmed by user "Yep" on 2026-04-26.
   - **Validates when:**
-    - **AI-side:** cmux app is detectable on disk; rendered `~/.config/cmux/settings.json` parses with `jq` (already covered by 2.0 / 3.0); rendered path resolves to an existing file: `[ -f "$(sed 's://.*$::' "$HOME/.config/cmux/settings.json" | jq -r '.notifications.customSoundFilePath')" ]` exits 0.
-    - **Human-side (cannot be AI-validated):** cmux launches without a settings-error dialog; cmux Settings UI displays the resolved path; the custom sound is audible when a notification fires.
-  - **Limitation:** AI-only validation can confirm preconditions (file exists, is readable, path resolves) but cannot drive the cmux GUI or hear audio. Human verification is required for AC-6.
+    - AI-side: cmux app present, rendered file exists as regular file, configured path resolves to repo wav via the symlink chain. ✓
+    - Human-side: settings load without error; custom sound audible. ✓ (user confirmed)
 
-- [ ] **5.0 Document the new helper and install paths in `README.md`** &nbsp; *Serves: AC-9*
-  - [ ] 5.1 Add a row to the Helpers table (at the location the table lives in `README.md`) for `generate_cmux_settings.sh` with a one-line description matching the style of existing rows.
-  - [ ] 5.2 In the `init.sh` description block, extend the `Purpose` cell to mention that cmux settings are rendered into `~/.config/cmux/settings.json` and that `cmux-notification.wav` is symlinked into `~/.sounds/`.
-  - [ ] 5.3 Add a one-line note (in the cmux row or a short paragraph after the Helpers table) that GUI edits to cmux settings are overwritten on next `init.sh` / `run.sh` invocation — this is intentional for v1.
+- [x] **5.0 Document the new helper and install paths in `README.md`** &nbsp; *Serves: AC-9*
+  - [x] 5.1 Added `generate_cmux_settings.sh` row to the Helpers table.
+  - [x] 5.2 Extended the `init.sh` Purpose cell with the cmux symlink + render summary.
+  - [x] 5.3 Added the GUI-overwrite caveat inline on the new helpers row (instead of a separate paragraph).
   - **Validates when:**
-    - `grep -F 'generate_cmux_settings.sh' README.md` matches at least one line.
-    - `grep -F '~/.sounds' README.md` matches at least one line.
-    - `grep -i -E 'cmux.*(setting|notification)' README.md` matches at least one line.
+    - `grep -F 'generate_cmux_settings.sh' README.md` matches. ✓
+    - `grep -F '~/.sounds' README.md` matches. ✓
+    - `grep -i -E 'cmux.*(setting|notification)' README.md` matches. ✓
 
 ## Open Items Resolved at This Stage
 
