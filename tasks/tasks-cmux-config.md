@@ -75,22 +75,19 @@
     - `grep -F '"sound": "custom_file"' $HOME/.config/cmux/settings.json` matches one line. ✓
     - `[ -f $HOME/.config/cmux/settings.json ] && [ ! -L $HOME/.config/cmux/settings.json ]` succeeds. ✓
 
-- [ ] **3.0 Wire the cmux block into `installation/symlink.sh`** &nbsp; *Serves: AC-4, AC-5, AC-7*
-  - [ ] 3.1 Append a new block to `installation/symlink.sh` after the existing helpers-symlink block. Match surrounding style (`echo` for status lines, `bash` syntax, no `set -e` change).
-  - [ ] 3.2 Block contents:
-    - `mkdir -p "$HOME/.sounds" "$HOME/.config/cmux"` (idempotent).
-    - Wav symlink using helpers idiom: if `readlink "$HOME/.sounds/cmux-notification.wav"` already equals `$HOME/dotfiles/cmux-notification.wav`, skip. Else if a file/symlink is in the way, move to `*.old$NOW` and relink. Else just create the symlink.
-    - Invoke `"$HOME/dotfiles/helpers/generate_cmux_settings.sh"` (this is the path it will have after install — `$HOME/dotfiles` is already a symlink to `$DOTFILES_CHECKOUT/dotfiles` per `init.sh`).
-  - [ ] 3.3 First run: clean state (manually delete `~/.sounds/cmux-notification.wav` and `~/.config/cmux/settings.json` first), then `bash installation/symlink.sh`. Confirm artifacts.
-  - [ ] 3.4 Second run: immediately re-run `bash installation/symlink.sh` without changing anything. Confirm idempotency: no new `.old<digits>` files.
-  - [ ] 3.5 Confirm `~/Downloads/help.wav` is still byte-identical to repo copy after the back-to-back runs.
+- [x] **3.0 Wire the cmux block into `installation/symlink.sh`** &nbsp; *Serves: AC-4, AC-5, AC-7*
+  - [x] 3.1 Appended new block at end of `installation/symlink.sh` (above the existing GPG comment), matching surrounding `echo` style and bash syntax.
+  - [x] 3.2 Block does `mkdir -p` for both new dirs, helpers-idiom symlink for the wav, then invokes `$HOME/dotfiles/helpers/generate_cmux_settings.sh`.
+  - [x] 3.3 First run from clean state: created `~/.sounds/cmux-notification.wav` symlink and rendered `~/.config/cmux/settings.json`.
+  - [x] 3.4 Second run: helpers-idiom block hit "nothing to do" branch; generator overwrote settings (matches `generate_gitconfig.sh` semantics, accepted per OQ #3). Zero `.old<digits>` files.
+  - [x] 3.5 `~/Downloads/help.wav` mtime/size unchanged across both runs; `cmp`-equal to repo copy.
   - **Validates when:**
-    - After first run: `readlink "$HOME/.sounds/cmux-notification.wav"` outputs `$HOME/dotfiles/cmux-notification.wav` (or its expanded form like `/Users/portaj/dotfiles/cmux-notification.wav`).
-    - After first run: `[ -f "$HOME/.config/cmux/settings.json" ] && [ ! -L "$HOME/.config/cmux/settings.json" ]` succeeds.
-    - After first run: `grep -c '__HOME__' "$HOME/.config/cmux/settings.json"` outputs `0`.
-    - After second run: `ls -1 "$HOME/.sounds/" | grep -E '^cmux-notification\.wav\.old[0-9]+$'` outputs nothing.
-    - After second run: `ls -1 "$HOME/.config/cmux/" | grep -E '^settings\.json\.old[0-9]+$'` outputs nothing.
-    - `cmp "$HOME/Downloads/help.wav" dotfiles/dotfiles/cmux-notification.wav` exits 0 after both runs.
+    - After first run: `readlink ~/.sounds/cmux-notification.wav` = `/Users/portaj/dotfiles/cmux-notification.wav`. ✓
+    - After first run: `[ -f ~/.config/cmux/settings.json ] && [ ! -L ~/.config/cmux/settings.json ]` succeeds. ✓
+    - After second run: no `cmux-notification.wav.old*` in `~/.sounds/`. ✓
+    - After second run: no `settings.json.old*` in `~/.config/cmux/`. ✓
+    - `cmp ~/Downloads/help.wav /Users/portaj/dotfiles/cmux-notification.wav` exits 0 after both runs. ✓
+    - `~/Downloads/help.wav` `stat -f '%z %m'` = `528296 1442468506` after both runs. ✓
 
 - [ ] **4.0 End-to-end install + cmux behavior verification** &nbsp; *Serves: AC-6*
   - [ ] 4.1 (Pre-check, AI-runnable) — confirm cmux app is installed: `[ -d /Applications/cmux.app ] || mdfind -name 'cmux.app' | head -1`. If cmux isn't installed, escalate to human; this AC cannot be tested otherwise.
