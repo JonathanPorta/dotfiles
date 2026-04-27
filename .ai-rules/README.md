@@ -88,11 +88,17 @@ cp -r ai-rules/ /path/to/your/project/.ai-rules/
 After installing, generate platform-specific config stubs:
 
 ```bash
-# Wire up for specific platforms
+# Use the defaults (claude + copilot)
+.ai-rules/setup.sh
+
+# Wire up specific platforms
 .ai-rules/setup.sh --platforms cursor,windsurf,copilot
 
-# Wire up for all supported platforms
+# Wire up every supported platform
 .ai-rules/setup.sh --platforms all
+
+# Overwrite an existing stub (skips the marker / frontmatter safety checks)
+.ai-rules/setup.sh --platforms cursor --force
 
 # See what's supported
 .ai-rules/setup.sh --list
@@ -157,6 +163,7 @@ tool access:
   AGENTS.md                        # Entry point and core principles
   setup.sh                         # Platform stub generator
   install.sh                       # curl|bash installer
+  claim-fork.sh                    # One-shot interactive fork-claim helper
   docs/
     overview.md                    # Why the framework exists and what it covers
     how-to-use.md                  # Recommended workflow by task type
@@ -173,6 +180,11 @@ tool access:
     06-session-state.md            # Persist context across sessions
     07-command-surface.md          # Required command and tool invocation boundaries
     08-tdd-enforcement.md          # (Optional) Red-then-green TDD evidence
+    09-git-and-publication-boundaries.md  # AI prepares; human ships
+    10-branch-pr-commit-conventions.md    # (Optional) git naming conventions
+    11-styleguide-overlays.md             # (Optional) private writing-style overlays
+    12-human-copyable-outputs.md          # (Optional, enabled by default) paste-ready /tmp/ai-* files
+    13-phase-gate-audits.md               # Audit before phase transitions and PR descriptions
     design/
       30-design-principles.md      # Design principles for coherent user-facing work
       31-ux-brief-and-intent.md    # User, job, emotional goal, constraints, success
@@ -207,6 +219,11 @@ tool access:
       windsurf.md                  # Windsurf stub (trigger: always_on)
       copilot.md                   # .github/copilot-instructions.md stub
       amp.md                       # Root AGENTS.md stub for Amp
+    styleguides/
+      README.md                    # Explains public/private styleguide split
+      example-voice-styleguide.md  # Generic public voice styleguide example
+      example-work-styleguide.md   # Generic public work-tone styleguide example
+      styleguides.example.yaml     # Loader config example for .ai-local/
   examples/
     sample-ux-brief.md             # Filled UX brief example
     sample-state-inventory.md      # Filled state inventory example
@@ -288,16 +305,52 @@ understand the flow and state model that screen belongs to.**
 
 ## Optional Rules
 
-Some rules are opt-in. They live in the repo but are disabled by default.
-To enable an optional rule, edit `AGENTS.md` and move it from the "Available"
-list to the "Enabled" list under the Optional Rules section.
+Some rules are opt-in. Whether each one is active is controlled by the
+**Available** and **Enabled** lists under the Optional Rules section of
+`AGENTS.md`. To turn a rule on, move it from Available to Enabled (or
+vice versa to turn one off). This repo enables a couple by default;
+forks can override.
 
 | Rule | What It Does | Enable When |
 |------|-------------|-------------|
 | [TDD Enforcement](rules/08-tdd-enforcement.md) | Requires red-then-green test evidence | Your team practices TDD and has test infrastructure |
+| [Branch, PR, and Commit Conventions](rules/10-branch-pr-commit-conventions.md) | Defines `{initials}/{type}/slug` branches, `type: Title Cased` PR titles, squash-merge default | You want consistent git naming across repos |
+| [Styleguide Overlays](rules/11-styleguide-overlays.md) | Loads optional private writing-style guidance from `.ai-local/` | You have a private voice or work styleguide and want the agent to apply it to prose |
+| [Human-Copyable Outputs](rules/12-human-copyable-outputs.md) | Writes PR descriptions, Slack posts, etc. to `/tmp/ai-*` files with a clipboard command instead of auto-publishing | You want a tangible draft to review before it lands in GitHub, Slack, or email (enabled by default) |
 
 Optional rules also come with supporting tooling in `scripts/`:
 - `tdd-check.sh` — compares git timestamps to verify test-before-implementation ordering
+
+## Forking
+
+To run a fork of these rules for your organization (including a GitHub
+Enterprise instance):
+
+1. Fork on GitHub (or create the equivalent repo on your GHE host) and
+   clone it locally.
+2. Run `./claim-fork.sh` from the repo root. It detects your clone's
+   git origin, walks you through replacing the host/owner/repo in
+   `install.sh` and the README, and offers to commit the result.
+3. Push.
+
+`claim-fork.sh` is interactive, idempotent (re-running on an
+already-claimed fork is a no-op), and supports both `github.com` and
+GHE hosts. Use `--dry-run` to preview without writing files.
+
+After step 3, the curl one-liner against your fork installs from your
+fork — no further edits to `install.sh` needed.
+
+To install from a fork *without* forking yourself, override at the call
+site:
+
+```bash
+AI_RULES_HOST=github.com AI_RULES_OWNER=alice AI_RULES_REPO=ai-rules-fork \
+  curl -fsSL https://raw.githubusercontent.com/alice/ai-rules-fork/main/install.sh | bash
+```
+
+For GHE, point `AI_RULES_HOST` at your enterprise host
+(e.g., `github.acme.corp`) and use the equivalent `${HOST}/raw/...`
+URL for the curl source.
 
 ## Extending for Your Organization
 
