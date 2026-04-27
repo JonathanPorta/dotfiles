@@ -148,3 +148,12 @@ newrepo my-app ~/src    # non-interactive
 
 ## TODO
 - [ ] Add ~/.aws and similar credentials — tie in with the .secrets format.
+
+## Third-Party Notices
+
+### dotfiles/cmux-notification.wav
+
+- **Title:** Media Help
+- **Author:** sonic-boom (Envato Elements)
+- **Source:** https://elements.envato.com/media-help-NKYMQHD
+- **License:** Envato Elements (https://elements.envato.com/license-terms), licensed to Jonathan Porta on 2026-04-26 for use in this dotfiles configuration. The Envato Elements license is non-transferable — if you fork this repo, you'll need your own license to use this asset.
