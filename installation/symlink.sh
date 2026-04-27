@@ -82,4 +82,22 @@ else
   ln -s "$HOME/dotfiles/helpers" "$HOME/.helpers"
 fi
 
+# cmux settings + custom notification sound
+echo "Ensure '$HOME/.sounds' and '$HOME/.config/cmux' exist..."
+mkdir -p "$HOME/.sounds" "$HOME/.config/cmux"
+
+echo "Ensure symlink of '$HOME/.sounds/cmux-notification.wav' points to '$HOME/dotfiles/cmux-notification.wav'..."
+if [ -L "$HOME/.sounds/cmux-notification.wav" ] && [ "$(readlink "$HOME/.sounds/cmux-notification.wav")" = "$HOME/dotfiles/cmux-notification.wav" ]; then
+  echo "'$HOME/.sounds/cmux-notification.wav' already points to '$HOME/dotfiles/cmux-notification.wav' - nothing to do."
+elif [ -e "$HOME/.sounds/cmux-notification.wav" ] || [ -L "$HOME/.sounds/cmux-notification.wav" ]; then
+  echo "WARNING: '$HOME/.sounds/cmux-notification.wav' exists but does not point to '$HOME/dotfiles/cmux-notification.wav' - relinking."
+  mv "$HOME/.sounds/cmux-notification.wav" "$HOME/.sounds/cmux-notification.wav.old$NOW"
+  ln -s "$HOME/dotfiles/cmux-notification.wav" "$HOME/.sounds/cmux-notification.wav"
+else
+  ln -s "$HOME/dotfiles/cmux-notification.wav" "$HOME/.sounds/cmux-notification.wav"
+fi
+
+echo "Rendering '$HOME/.config/cmux/settings.json' from template..."
+"$HOME/dotfiles/helpers/generate_cmux_settings.sh"
+
 # GPG configuration is handled by installation/gpg.sh
