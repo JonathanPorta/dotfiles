@@ -91,9 +91,9 @@ HEADLESS=true ./init.sh
 
 | | |
 |---|---|
-| **Purpose** | Clones this repo (via HTTPS), symlinks shell configs (`.zshrc`, `.zshenv`, `.zprofile`, `.gitignore_global`, `.chruby`, `.helpers`) into `$HOME`, installs `jq` and `zsh` if missing, and syncs GitHub `authorized_keys`. |
+| **Purpose** | Clones this repo (via HTTPS), symlinks shell configs (`.zshrc`, `.zshenv`, `.zprofile`, `.gitignore_global`, `.chruby`, `.helpers`) into `$HOME`, symlinks `cmux-notification.wav` into `~/.sounds/` and renders `~/.config/cmux/settings.json` from the JSONC template, installs `jq` and `zsh` if missing, and syncs GitHub `authorized_keys`. |
 | **Idempotency** | **Mostly safe to re-run.** If the repo already exists it does a `git fetch` instead of cloning. Existing dotfiles in `$HOME` are renamed to `*.old<timestamp>` before re-linking, so nothing is silently lost. |
-| **Destructive?** | Moves existing `.zshrc`, `.zshenv`, `.zprofile`, `.gitignore_global`, `.chruby` to timestamped backups. Truncates `authorized_keys`. |
+| **Destructive?** | Moves existing `.zshrc`, `.zshenv`, `.zprofile`, `.gitignore_global`, `.chruby` to timestamped backups. Truncates `authorized_keys`. **Overwrites `~/.config/cmux/settings.json`** from the tracked template — edit `dotfiles/cmux-settings.json`, not the rendered file. |
 
 ```bash
 ./init.sh            # interactive
@@ -129,6 +129,7 @@ The `dotfiles/helpers/` directory is symlinked to `~/.helpers` and added to `$PA
 |---|---|
 | `newrepo` | Creates a new local+GitHub repo with ai-rules subtree pre-installed. Interactive prompts for name, location, and visibility. |
 | `generate_gitconfig.sh` | Generates `~/.gitconfig` from a template (sourced automatically by `.profile` on shell startup). |
+| `generate_cmux_settings.sh` | Renders `~/.config/cmux/settings.json` from `dotfiles/cmux-settings.json`, substituting `__HOME__` with `$HOME`. Invoked from `installation/symlink.sh`. **Note:** edits made via cmux's settings UI are overwritten on the next `init.sh` / `run.sh` run — edit the template, not the rendered file. |
 | `util.sh` | Shell utility functions like `externaldns` and `curlr` (sourced automatically by `.profile`). |
 
 ```bash
@@ -147,3 +148,12 @@ newrepo my-app ~/src    # non-interactive
 
 ## TODO
 - [ ] Add ~/.aws and similar credentials — tie in with the .secrets format.
+
+## Third-Party Notices
+
+### dotfiles/cmux-notification.wav
+
+- **Title:** Media Help
+- **Author:** sonic-boom (Envato Elements)
+- **Source:** https://elements.envato.com/media-help-NKYMQHD
+- **License:** Envato Elements (https://elements.envato.com/license-terms), licensed to Jonathan Porta on 2026-04-26 for use in this dotfiles configuration. The Envato Elements license is non-transferable — if you fork this repo, you'll need your own license to use this asset.
