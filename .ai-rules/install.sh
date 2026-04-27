@@ -12,9 +12,75 @@ set -euo pipefail
 #   - If .ai-rules/ exists but isn't ours: abort with warning
 #
 
-REPO="https://github.com/JonathanPorta/ai-rules.git"
-REPO_API="https://api.github.com/repos/JonathanPorta/ai-rules/releases/latest"
-ORIGIN_URL="https://github.com/JonathanPorta/ai-rules"
+# DEFAULT_HOST, DEFAULT_OWNER, DEFAULT_REPO point at the upstream repo this
+# script was distributed from. Forks rewrite these locally by running
+# claim-fork.sh once after cloning; see README's "Forking" section.
+DEFAULT_HOST="github.com"
+DEFAULT_OWNER="JonathanPorta"
+DEFAULT_REPO="ai-rules"
+
+# Runtime override via env vars; otherwise the stamped defaults above.
+HOST="${AI_RULES_HOST:-$DEFAULT_HOST}"
+OWNER="${AI_RULES_OWNER:-$DEFAULT_OWNER}"
+REPO_NAME="${AI_RULES_REPO:-$DEFAULT_REPO}"
+
+# Clone-mode auto-detect: if install.sh is being executed from a file inside
+# what looks like an ai-rules checkout (has setup.sh + AGENTS.md as sentinels),
+# derive HOST/OWNER/REPO_NAME from that clone's git origin. Skipped under
+# curl|bash because BASH_SOURCE[0] is not a real file path in that flow.
+if [[ -z "${AI_RULES_HOST:-}" && -z "${AI_RULES_OWNER:-}" && -z "${AI_RULES_REPO:-}" \
+      && -n "${BASH_SOURCE[0]:-}" && -f "${BASH_SOURCE[0]}" ]]; then
+  # `pwd -P` gives the physical path; matches what git rev-parse returns,
+  # which is necessary on macOS where /tmp -> /private/tmp and similar
+  # symlinks would otherwise make the toplevel-equality check below miss.
+  _script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+  # Only adopt the script-dir's git origin when this directory is the
+  # toplevel of its own git repo — i.e. install.sh is being run from an
+  # actual clone of ai-rules. For subtree installs (where .ai-rules/
+  # lives *inside* a consumer repo), git would walk up to the consumer's
+  # config and we'd build an API URL pointing at the wrong repo (e.g.
+  # api.github.com/repos/<consumer-owner>/<consumer-repo>/releases/latest,
+  # which 404s). The toplevel-equality check rejects that case cleanly.
+  _script_toplevel="$(git -C "$_script_dir" rev-parse --show-toplevel 2>/dev/null || true)"
+  if [[ -f "$_script_dir/setup.sh" && -f "$_script_dir/AGENTS.md" \
+        && -n "$_script_toplevel" && "$_script_toplevel" == "$_script_dir" ]]; then
+    _detected="$(git -C "$_script_dir" config --get remote.origin.url 2>/dev/null || true)"
+    _parsed_host=""; _parsed_owner=""; _parsed_repo=""
+    if [[ "$_detected" =~ ^https?://([^/]+)/([^/]+)/([^/]+)$ ]]; then
+      _parsed_host="${BASH_REMATCH[1]}"
+      _parsed_owner="${BASH_REMATCH[2]}"
+      _parsed_repo="${BASH_REMATCH[3]%.git}"
+    elif [[ "$_detected" =~ ^git@([^:]+):([^/]+)/([^/]+)$ ]]; then
+      _parsed_host="${BASH_REMATCH[1]}"
+      _parsed_owner="${BASH_REMATCH[2]}"
+      _parsed_repo="${BASH_REMATCH[3]%.git}"
+    fi
+    # Only adopt parsed values if the host looks like a real domain
+    # (contains a dot). SSH config aliases like "gh-alt" must not become
+    # API hosts — fall back to stamped defaults instead.
+    if [[ -n "$_parsed_host" && "$_parsed_host" == *.* ]]; then
+      HOST="$_parsed_host"
+      OWNER="$_parsed_owner"
+      REPO_NAME="$_parsed_repo"
+    fi
+    unset _detected _parsed_host _parsed_owner _parsed_repo
+  fi
+  unset _script_dir _script_toplevel
+fi
+
+# Derive the three URL bases from HOST. github.com uses dedicated subdomains
+# for the API and raw content; GitHub Enterprise serves both under the same
+# host (api/v3 and /raw paths).
+if [[ "$HOST" == "github.com" ]]; then
+  API_BASE="https://api.github.com"
+else
+  API_BASE="https://${HOST}/api/v3"
+fi
+WEB_BASE="https://${HOST}"
+
+REPO="${WEB_BASE}/${OWNER}/${REPO_NAME}.git"
+REPO_API="${API_BASE}/repos/${OWNER}/${REPO_NAME}/releases/latest"
+ORIGIN_URL="${WEB_BASE}/${OWNER}/${REPO_NAME}"
 PREFIX=".ai-rules"
 VERSION_FILE="${PREFIX}/.version"
 
@@ -26,6 +92,25 @@ NC='\033[0m' # No Color
 info()  { echo -e "${GREEN}[ai-rules]${NC} $*"; }
 warn()  { echo -e "${YELLOW}[ai-rules]${NC} $*"; }
 error() { echo -e "${RED}[ai-rules]${NC} $*" >&2; }
+
+# Idempotently ensure the consuming repo's root .gitignore protects
+# private styleguide overlays (the .ai-local/ convention). Called from
+# every success path so existing repos pick up the entry on update,
+# not only on fresh install.
+ensure_ai_local_gitignore() {
+  local marker="# ai-rules-local-config"
+  if [[ -f .gitignore ]] && grep -qF "$marker" .gitignore; then
+    return 0
+  fi
+  {
+    if [[ -f .gitignore ]] && [[ -n "$(tail -c 1 .gitignore)" ]]; then
+      echo ""
+    fi
+    echo "$marker"
+    echo ".ai-local/"
+  } >> .gitignore
+  info "Added .ai-local/ to .gitignore (private styleguide overlays)."
+}
 
 # -------------------------------------------------------------------
 # Preflight checks
@@ -107,6 +192,8 @@ if [[ ! -d "$PREFIX" ]]; then
   info "Installing ai-rules ${LATEST_TAG}..."
   git subtree add --prefix="$PREFIX" "$REPO" "$LATEST_TAG" --squash
 
+  ensure_ai_local_gitignore
+
   info "Installation complete."
   info ""
   info "Next steps:"
@@ -132,11 +219,14 @@ elif [[ -f "$VERSION_FILE" ]]; then
 
   if [[ "$INSTALLED_TAG" == "$LATEST_TAG" ]]; then
     info "Already up to date at ${LATEST_TAG}."
+    ensure_ai_local_gitignore
     exit 0
   fi
 
   info "Updating ai-rules from ${INSTALLED_TAG} to ${LATEST_TAG}..."
   git subtree pull --prefix="$PREFIX" "$REPO" "$LATEST_TAG" --squash
+
+  ensure_ai_local_gitignore
 
   info "Update complete: ${INSTALLED_TAG} → ${LATEST_TAG}"
 
