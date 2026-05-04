@@ -33,6 +33,17 @@
     "customSoundFilePath": "__HOME__/.sounds/cmux-notification.wav"
   },
 
+  // Disable cmux's PR-status badges in the sidebar. As tested locally, this
+  // setting only hides the UI badges — it does NOT stop the underlying
+  // `gh pr view` / `gh pr checks` / `gh pr list` polling (verified: cmux
+  // reload-config succeeds but polling continues unchanged). The actual
+  // burn-stopper is the `_cmux_start_pr_poll_loop` override in .zshrc.
+  // Keeping this here as belt-and-suspenders in case upstream eventually
+  // wires the setting to also stop the polling.
+  "sidebar": {
+    "showPullRequests": false
+  },
+
   //   "sidebar" : {
   //     "branchLayout" : "vertical",
   //     "hideAllDetails" : false,

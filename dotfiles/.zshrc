@@ -93,26 +93,37 @@ if [ -f "$HOME/.code-puppy-venv/bin/code-puppy" ]; then
 fi
 
 # ----------------------------------------------------------------------------
-# Disable cmux's PR-status polling.
+# Disable cmux's shell-side PR-status polling.
 #
 # cmux's shell integration (cmux-zsh-integration.zsh) starts a background
 # `_cmux_start_pr_poll_loop` per shell that runs `gh pr view <branch>` every
-# 45s to display PR status in the cmux UI. Across many cmux workspaces and
-# shells this aggregates to ~100 GraphQL points/min and saturates the
-# personal 5000/hr GitHub API quota every ~50 minutes — blocking all other
+# 45s to render PR status in the cmux sidebar. Across many open workspaces
+# and shells this aggregates to ~100 GraphQL points/min and saturates the
+# personal 5,000/hr GitHub API quota every ~50 minutes — blocking other
 # tooling that authenticates as the user (gh CLI, Copilot, Claude, etc.).
 #
-# Override the function to a no-op AFTER cmux's integration has loaded, and
-# bump the interval to be effectively never as a belt-and-suspenders measure.
-# Currently-running shells need `_cmux_stop_pr_poll_loop` invoked manually
-# (or just close + reopen the tab).
+# We also set `sidebar.showPullRequests: false` in cmux-settings.json. As
+# tested, that flag only hides the UI badges and does not stop the actual
+# polling (verified locally: `cmux reload-config` succeeds, calls continue
+# unchanged). The function override remains the mechanism that actually
+# stops the burn. Keep both until upstream behavior changes.
 #
-# Note: cmux ALSO polls from the app process itself (`gh pr checks` /
-# `gh pr list`) which this override does NOT stop — that requires quitting
-# and restarting cmux. Filed/will file as a feature request for an in-app
-# disable toggle.
+# Guard with the cmux env vars so non-cmux zsh sessions are unaffected. If
+# a poll loop already started before this file finished loading, stop it
+# first so the override is deterministic.
+#
+# Caveat: this only targets the shell-side `gh pr view` poller. cmux's app
+# process ALSO runs `gh pr checks` / `gh pr list` (PPID = cmux binary, no
+# controlling tty) — those are not addressed here and may need a separate
+# cmux setting or upstream fix to silence.
 # ----------------------------------------------------------------------------
-_cmux_start_pr_poll_loop() { return 0; }
-typeset -g _CMUX_PR_POLL_INTERVAL=999999
+if [[ -n "${CMUX_SHELL_INTEGRATION:-}${CMUX_TAB_ID:-}${CMUX_WORKSPACE_ID:-}" ]]; then
+  if (( $+functions[_cmux_stop_pr_poll_loop] )); then
+    _cmux_stop_pr_poll_loop >/dev/null 2>&1 || true
+  fi
+
+  _cmux_start_pr_poll_loop() { return 0; }
+  typeset -g _CMUX_PR_POLL_INTERVAL=999999
+fi
 
 # zprof
