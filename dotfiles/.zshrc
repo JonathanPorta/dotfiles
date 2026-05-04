@@ -92,4 +92,27 @@ if [ -f "$HOME/.code-puppy-venv/bin/code-puppy" ]; then
   alias code-puppy="$HOME/.code-puppy-venv/bin/code-puppy"
 fi
 
+# ----------------------------------------------------------------------------
+# Disable cmux's PR-status polling.
+#
+# cmux's shell integration (cmux-zsh-integration.zsh) starts a background
+# `_cmux_start_pr_poll_loop` per shell that runs `gh pr view <branch>` every
+# 45s to display PR status in the cmux UI. Across many cmux workspaces and
+# shells this aggregates to ~100 GraphQL points/min and saturates the
+# personal 5000/hr GitHub API quota every ~50 minutes — blocking all other
+# tooling that authenticates as the user (gh CLI, Copilot, Claude, etc.).
+#
+# Override the function to a no-op AFTER cmux's integration has loaded, and
+# bump the interval to be effectively never as a belt-and-suspenders measure.
+# Currently-running shells need `_cmux_stop_pr_poll_loop` invoked manually
+# (or just close + reopen the tab).
+#
+# Note: cmux ALSO polls from the app process itself (`gh pr checks` /
+# `gh pr list`) which this override does NOT stop — that requires quitting
+# and restarting cmux. Filed/will file as a feature request for an in-app
+# disable toggle.
+# ----------------------------------------------------------------------------
+_cmux_start_pr_poll_loop() { return 0; }
+typeset -g _CMUX_PR_POLL_INTERVAL=999999
+
 # zprof

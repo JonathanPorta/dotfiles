@@ -2,3 +2,5 @@
 *secret*
 !.secrets-example
 *id_rsa*
+# ai-rules-local-config
+.ai-local/
