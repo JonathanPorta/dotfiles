@@ -133,7 +133,7 @@ directory and introduces one new helper script that reads from that directory.
   - `dingding.wav`, `british-detective-can-i-ask-you-something.wav`, `british-male-what-do-you-think.wav`, `english-warrior-can-you-help-me.wav`, `wizard-i-am-ready-and-waiting.wav`
   - `man-asking-for-help-{1,2,3,4}.wav`
   - `man-asking-for-help-{1,2,3,4}.mp3`
-- [ ] **AC-3:** `dingding.wav` is byte-for-byte identical to the prior `dotfiles/cmux-notification.wav` (`cmp` returns 0 against the old git blob).
+- [ ] **AC-3:** `dingding.wav` is the loudness-normalized form of the prior `dotfiles/cmux-notification.wav` (revised mid-PR after the user opted to add EBU R128 normalization to the whole pool — see PRD note below). Verified by: `ffmpeg -i dotfiles/cmux/dingding.wav -af loudnorm=print_format=json -f null -` reports `input_i` within ±0.5 dB of `-16.0` LUFS, and the file remains valid `RIFF (little-endian) data, WAVE audio`. The historical pre-normalization byte stream is recoverable from PR #28 commit `b31552a` if ever needed.
 - [ ] **AC-4:** `dotfiles/cmux-notification.wav` no longer exists in the repo.
 - [ ] **AC-5:** `dotfiles/helpers/cmux-random-sound` exists, is executable (`-rwxr-xr-x` or stricter), passes `bash -n` parse, and `shellcheck` reports no errors (warnings are tolerated; documented if any).
 - [ ] **AC-6:** Running the helper with the install-path directory empty or missing exits 0 with no stderr output (verified by removing `~/.sounds/cmux/` temporarily and running the helper).
@@ -151,7 +151,12 @@ directory and introduces one new helper script that reads from that directory.
   - and running it without the env var and confirming no `-v` flag appears.
 
 ## Non-Goals (additions)
-- Per-file loudness normalization (LUFS targeting via `ffmpeg loudnorm`). Tracked as potential follow-up if perceived loudness drift across the source files becomes annoying.
+- ~~Per-file loudness normalization (LUFS targeting via `ffmpeg loudnorm`). Tracked as potential follow-up if perceived loudness drift across the source files becomes annoying.~~ **Reversed mid-PR:** human opted to add EBU R128 normalization to all 13 files at -16 LUFS / -1.5 dBTP / 11 LU LRA, and to set the helper's default playback volume to `0.4`. AC-3 was revised accordingly (no longer byte-equal). PR #28's commit `b31552a` preserves the pre-normalization bytes if ever needed.
+
+## Acceptance Criteria (additions)
+- [ ] **AC-17:** All 13 files in `dotfiles/cmux/` measure within ±1.5 dB of `-16.0` LUFS (EBU R128 integrated loudness). Verified via `ffmpeg -i <file> -af loudnorm=print_format=json -f null -` parsing `input_i` for each file.
+- [ ] **AC-18:** `dotfiles/helpers/cmux-random-sound` defaults `CMUX_RANDOM_SOUND_VOLUME` to `0.4` when the env var is unset; setting the env var still overrides. Verified by inspecting the `ps` afplay command line.
+- [ ] **AC-19:** README documents the loudness-normalization target and provides a one-shot recipe for re-normalizing newly-added files.
 
 ## Open Questions
 None — all clarifying questions resolved before this PRD was written.

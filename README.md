@@ -130,7 +130,7 @@ The `dotfiles/helpers/` directory is symlinked to `~/.helpers` and added to `$PA
 | `newrepo` | Creates a new local+GitHub repo with ai-rules subtree pre-installed. Interactive prompts for name, location, and visibility. |
 | `generate_gitconfig.sh` | Generates `~/.gitconfig` from a template (sourced automatically by `.profile` on shell startup). |
 | `generate_cmux_settings.sh` | Renders `~/.config/cmux/settings.json` from `dotfiles/cmux-settings.json`, substituting `__HOME__` with `$HOME`. Invoked from `installation/symlink.sh`. **Note:** edits made via cmux's settings UI are overwritten on the next `init.sh` / `run.sh` run — edit the template, not the rendered file. |
-| `cmux-random-sound` | Picks a random audio file from `~/.sounds/cmux/` and plays it via `afplay` in the background. Invoked by cmux's `notifications.command` hook on every notification. Honors `CMUX_RANDOM_SOUND_VOLUME` (a float passed as `afplay -v`); unset = system default. Exits silently if the directory is missing/empty or the platform isn't darwin. |
+| `cmux-random-sound` | Picks a random audio file from `~/.sounds/cmux/` and plays it via `afplay` in the background. Invoked by cmux's `notifications.command` hook on every notification. Honors `CMUX_RANDOM_SOUND_VOLUME` (a float passed as `afplay -v`); **default `0.4`** so the loudness-normalized clips don't jumpscare. Exits silently if the directory is missing/empty or the platform isn't darwin. |
 | `util.sh` | Shell utility functions like `externaldns` and `curlr` (sourced automatically by `.profile`). |
 
 ### Adding more cmux notification sounds
@@ -140,13 +140,28 @@ The cmux notification sound is randomized per-notification — one file is picke
 1. Drop a `.wav`, `.mp3`, `.aiff`, `.aif`, or `.m4a` file into `~/.sounds/cmux/` (or into `dotfiles/cmux/` if you want it tracked in the repo — the install symlinks the whole directory).
 2. Reload cmux config (`cmd+shift+,`) — actually unnecessary for new sounds (they're picked up at the next notification because the helper re-scans the directory each time), but useful if you've also edited `dotfiles/cmux-settings.json`.
 
-To turn the volume down (or up), set `CMUX_RANDOM_SOUND_VOLUME` in `.zshrc` — a float passed straight to `afplay -v`. Useful range is `0.0`–`1.0`; values above `1.0` amplify but may clip:
+All sounds in `dotfiles/cmux/` are loudness-normalized to **-16 LUFS** (EBU R128) so no single clip is dramatically louder than the others. Playback volume defaults to `0.4` (40% of system volume) — quiet enough not to be a jumpscare, loud enough to notice. To override, set `CMUX_RANDOM_SOUND_VOLUME` in `.zshrc` (a float passed straight to `afplay -v`; useful range `0.0`–`1.0`; values above `1.0` amplify but may clip):
 
 ```bash
-export CMUX_RANDOM_SOUND_VOLUME=0.5  # half volume
+export CMUX_RANDOM_SOUND_VOLUME=1.0   # full system volume
+export CMUX_RANDOM_SOUND_VOLUME=0.2   # quieter than the default
 ```
 
-Unset the variable (or leave it unset) to use the system default volume.
+Re-normalize after dropping new files into `dotfiles/cmux/` so they match the existing loudness:
+
+```bash
+brew install ffmpeg
+pipx install ffmpeg-normalize  # one-time
+
+ffmpeg-normalize dotfiles/cmux/*.wav \
+  -nt ebu -t -16 -tp -1.5 -lrt 11 \
+  -of /tmp/cmux-normalized -ar 44100 -c:a pcm_s16le -ext wav -f
+ffmpeg-normalize dotfiles/cmux/*.mp3 \
+  -nt ebu -t -16 -tp -1.5 -lrt 11 \
+  -of /tmp/cmux-normalized -ar 44100 -c:a libmp3lame -b:a 128k -ext mp3 -f
+
+cp /tmp/cmux-normalized/* dotfiles/cmux/
+```
 
 ```bash
 newrepo                 # run from anywhere
