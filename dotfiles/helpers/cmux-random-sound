@@ -19,11 +19,14 @@ sound_dir="$HOME/.sounds/cmux"
 command -v afplay >/dev/null 2>&1 || exit 0
 
 # -L so a symlinked sound_dir (the install-pipeline default) is followed.
+# Seed awk with $RANDOM + PID so multiple notifications fired within the same
+# second don't all collide on the same pick (default srand() = epoch seconds).
 sound="$(
   find -L "$sound_dir" -type f \
     \( -iname '*.aiff' -o -iname '*.aif' -o -iname '*.wav' \
        -o -iname '*.mp3' -o -iname '*.m4a' \) |
-  awk 'BEGIN{srand()} {a[NR]=$0} END{if (NR) print a[int(rand()*NR)+1]}'
+  awk -v seed="${RANDOM}${$}" \
+    'BEGIN{srand(seed)} {a[NR]=$0} END{if (NR) print a[int(rand()*NR)+1]}'
 )"
 
 [ -n "$sound" ] || exit 0
