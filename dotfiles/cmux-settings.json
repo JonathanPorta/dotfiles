@@ -28,9 +28,15 @@
   //     "warnBeforeQuit" : true
   //   },
 
+  // Disable cmux's built-in sound and instead invoke a helper script that picks
+  // a random sound from ~/.sounds/cmux/ on each notification. The helper lives
+  // at dotfiles/helpers/cmux-random-sound and is PATH-exposed via ~/.helpers/.
+  // Drop a .wav/.mp3/.aiff/.aif/.m4a into ~/.sounds/cmux/ and reload cmux config
+  // (cmd+shift+,) to pick it up. Volume can be tuned with the env var
+  // CMUX_RANDOM_SOUND_VOLUME (a float passed as `afplay -v`); unset = system default.
   "notifications": {
-    "sound": "custom_file",
-    "customSoundFilePath": "__HOME__/.sounds/cmux-notification.wav"
+    "sound": "none",
+    "command": "__HOME__/.helpers/cmux-random-sound"
   },
 
   // Disable cmux's PR-status badges in the sidebar. As tested locally, this

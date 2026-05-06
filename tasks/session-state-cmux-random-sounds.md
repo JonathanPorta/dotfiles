@@ -4,8 +4,8 @@ Last updated: 2026-05-05T00:00:00Z
 ### Current Position
 - **Current Phase:** Phase 3 (Implementation)
 - **Validation Review Mode:** auto-proceed
-- **Working on:** Task 3.0 (settings template) — next
-- **Status:** Task 2.0 complete (validated 9/9, AC-7 revised); commit pending in this batch
+- **Working on:** Task 4.0 (symlink.sh wiring) — next
+- **Status:** Task 3.0 complete (validated 3/3); commit pending
 - **Blocked:** No
 
 ### Key Decisions

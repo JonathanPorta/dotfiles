@@ -91,10 +91,11 @@ Every AC is served by at least one task; no orphan tasks.
        - `unset CMUX_RANDOM_SOUND_VOLUME; dotfiles/helpers/cmux-random-sound` → `pgrep -af afplay` does NOT show `-v` in args.
   - **Validates when:** all seven checks pass.
 
-- [ ] 3.0 Update `dotfiles/cmux-settings.json` — switch to `command` hook                              ← Serves: AC-1
-  - [ ] 3.1 In the `notifications` block, change `"sound": "custom_file"` → `"sound": "none"`.
-  - [ ] 3.2 Replace the `customSoundFilePath` line with `"command": "__HOME__/.helpers/cmux-random-sound"`.
-  - [ ] 3.3 Adjust the surrounding comment to explain the new approach (not the old custom-file approach).
+- [x] 3.0 Update `dotfiles/cmux-settings.json` — switch to `command` hook                              ← Serves: AC-1
+  - [x] 3.1 In the `notifications` block, change `"sound": "custom_file"` → `"sound": "none"`.
+  - [x] 3.2 Replace the `customSoundFilePath` line with `"command": "__HOME__/.helpers/cmux-random-sound"`.
+  - [x] 3.3 Added a multi-line comment block explaining the new approach + the `CMUX_RANDOM_SOUND_VOLUME` env var.
+  - **Validation results:** all 3 checks PASS. (JSONC strip needed both whole-line `//` removal AND trailing-comma stripping; the schema-URL `//` and pre-existing trailing commas would have broken naive sed-based stripping.)
   - **Pre-implementation validation plan:**
     1. JSONC strip + `jq` parse: `sed 's://.*$::' dotfiles/cmux-settings.json | jq .notifications` returns `{"sound":"none","command":"__HOME__/.helpers/cmux-random-sound"}` (AC-1).
     2. `grep -F customSoundFilePath dotfiles/cmux-settings.json` exits 1 (no match) — AC-1.
