@@ -4,8 +4,8 @@ Last updated: 2026-05-05T00:00:00Z
 ### Current Position
 - **Current Phase:** Phase 3 (Implementation)
 - **Validation Review Mode:** auto-proceed
-- **Working on:** Task 4.0 (symlink.sh wiring) — next
-- **Status:** Task 3.0 complete (validated 3/3); commit pending
+- **Working on:** Task 5.0 (README + license attribution) — next
+- **Status:** Task 4.0 complete (validated 6/6, including bonus AC-11c); commit pending
 - **Blocked:** No
 
 ### Key Decisions

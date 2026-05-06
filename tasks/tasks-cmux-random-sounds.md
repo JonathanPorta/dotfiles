@@ -102,10 +102,11 @@ Every AC is served by at least one task; no orphan tasks.
     3. `grep -F '__HOME__/.helpers/cmux-random-sound' dotfiles/cmux-settings.json` exits 0 — AC-1.
   - **Validates when:** all three checks pass.
 
-- [ ] 4.0 Update `installation/symlink.sh` — directory symlink + cleanup of old wav symlink            ← Serves: AC-9, AC-10, AC-11, AC-12
-  - [ ] 4.1 Replace the existing single-wav helpers-idiom block with a directory-symlink helpers-idiom block targeting `~/.sounds/cmux` → `$HOME/dotfiles/cmux/`.
-  - [ ] 4.2 Add a one-time cleanup: if `~/.sounds/cmux-notification.wav` is a SYMLINK whose `readlink` resolves into `$HOME/dotfiles/`, `rm` it. Never touch a regular file at that path.
-  - [ ] 4.3 Keep `mkdir -p $HOME/.sounds $HOME/.config/cmux` and the call to `generate_cmux_settings.sh` unchanged.
+- [x] 4.0 Update `installation/symlink.sh` — directory symlink + cleanup of old wav symlink            ← Serves: AC-9, AC-10, AC-11, AC-12
+  - [x] 4.1 Directory-symlink helpers-idiom block: `~/.sounds/cmux` → `$HOME/dotfiles/cmux/`.
+  - [x] 4.2 One-time cleanup with `case` on `readlink` target — symlink-only, into-`$HOME/dotfiles/`-only. Bonus: AC-11c also covered (non-repo symlink target left alone with WARNING).
+  - [x] 4.3 Kept `mkdir -p` and `generate_cmux_settings.sh` invocation unchanged.
+  - **Validation results:** all 6 checks PASS (AC-9, AC-10, AC-11a, AC-11b, AC-11c bonus, AC-12).
   - **Pre-implementation validation plan:**
     1. AC-9 (fresh-machine simulation): in a scratch dir, set `HOME=/tmp/cmux-fresh`, ensure `~/.sounds/cmux` doesn't exist, run a stripped harness or just the new block; afterwards `readlink -f /tmp/cmux-fresh/.sounds/cmux` resolves into the live `$HOME/dotfiles/cmux`. (Easier: run on the real `$HOME` after first removing `~/.sounds/cmux`; verify symlink correct.)
     2. AC-10 (idempotency): run `installation/symlink.sh` twice; `find $HOME/.sounds -name '*.old*'` empty; `ls -la $HOME/.sounds/` shows exactly one `cmux` entry pointing into the repo.
