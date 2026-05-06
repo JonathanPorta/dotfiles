@@ -115,11 +115,12 @@ Every AC is served by at least one task; no orphan tasks.
     5. AC-12: `grep -F __HOME__ $HOME/.config/cmux/settings.json` exits 1; `grep -F "$HOME/.helpers/cmux-random-sound" $HOME/.config/cmux/settings.json` exits 0.
   - **Validates when:** all five checks pass.
 
-- [ ] 5.0 README updates                                                                              ← Serves: AC-14, AC-16
-  - [ ] 5.1 Update the `init.sh` description: replace "symlinks `cmux-notification.wav` into `~/.sounds/`" with directory-symlink wording; mention the new helper.
-  - [ ] 5.2 Add `cmux-random-sound` row to the `## Helpers (~/.helpers)` table.
-  - [ ] 5.3 Replace the single `cmux-notification.wav` third-party notice with a section listing each file under `dotfiles/cmux/` (Title, Author/Source, License). Use the existing entry's structure for `dingding.wav`; add 5 new entries for the issue-supplied clips.
-  - [ ] 5.4 Add a short subsection "Adding more cmux sounds" near the helpers section: drop a supported file into `~/.sounds/cmux/` (or `dotfiles/cmux/` to track it in the repo), then reload cmux config with `cmd+shift+,`. Document `CMUX_RANDOM_SOUND_VOLUME` here.
+- [x] 5.0 README updates                                                                              ← Serves: AC-14, AC-16
+  - [x] 5.1 Updated `init.sh` description: directory-symlink wording, mention of helper.
+  - [x] 5.2 Added `cmux-random-sound` row to the helpers table.
+  - [x] 5.3 Replaced single notice with a per-file table; preserved `dingding.wav` original Envato attribution; added entries for each new clip with reference to issue #26.
+  - [x] 5.4 New "Adding more cmux notification sounds" subsection: drop-and-go workflow, `CMUX_RANDOM_SOUND_VOLUME` example.
+  - **Validation results:** all 6 checks PASS.
   - **Pre-implementation validation plan:**
     1. `grep -nE '~/\.sounds/cmux/' README.md` returns at least one match (install description).
     2. `grep -nE '\| .cmux-random-sound. \|' README.md` finds the helpers-table row.
