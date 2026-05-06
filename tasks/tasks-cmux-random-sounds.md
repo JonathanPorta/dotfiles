@@ -130,11 +130,12 @@ Every AC is served by at least one task; no orphan tasks.
     6. `grep -F 'cmux-notification.wav' README.md` returns no path-bearing matches outside the rename callout (the rename can be referenced; the live install path should not be).
   - **Validates when:** all six checks pass and visual review confirms third-party block lists each file.
 
-- [ ] 6.0 End-to-end verification, gitignore audit, PR description prep                                ← Serves: AC-13, AC-15
-  - [ ] 6.1 `git check-ignore -v dotfiles/helpers/cmux-random-sound dotfiles/cmux/*` — expect zero matches (AC-15).
-  - [ ] 6.2 Run `installation/symlink.sh` end-to-end on this machine (post-implementation), then trigger a cmux notification (manual). Observe a sound from `~/.sounds/cmux/` plays. Trigger 5+ in a row; observe rotation. Log which sounds played in evidence section. (AC-13)
-  - [ ] 6.3 Run the project's reconciliation audit per rule 13 (phase-gate audit).
-  - [ ] 6.4 Build the AC verification table; write paste-ready PR description to `/tmp/ai-dotfiles-pr-description-<timestamp>.md` per rule 12. Include a `pbcopy` command. **Do NOT push, do NOT `gh pr create`** (rule 09).
+- [x] 6.0 End-to-end verification, gitignore audit, PR description prep                                ← Serves: AC-13, AC-15
+  - [x] 6.1 AC-15 `git check-ignore -v` audit — PASS for the helper and all 13 sound files.
+  - [x] 6.2 E2E smoke against the live install passes; rotation healthy after seed fix (`1fc471d`). AC-13 manual cmux-notification trigger flagged for human verification per rule 04.
+  - [x] 6.3 Phase-gate audit run per rule 13 — `PASS WITH WARNINGS` (one warning: session-state file disposition awaiting human guidance).
+  - [x] 6.4 PR description written to `/tmp/ai-dotfiles-pr-description-20260506-022340.md`; `pbcopy` command supplied. NOT pushed; NOT opened via `gh pr create` (rule 09 boundary).
+  - **Validation results:** AC-15 PASS, AC-13 PENDING (human).
   - **Pre-implementation validation plan:**
     1. AC-15: `git check-ignore -v dotfiles/helpers/cmux-random-sound` and `git check-ignore -v dotfiles/cmux/*` both emit nothing.
     2. AC-13: cmux notification fired manually plays a random sound; 5 consecutive notifications produce ≥ 2 distinct sounds (recorded in evidence table — manual step, flagged "human verification").
