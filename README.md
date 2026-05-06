@@ -130,7 +130,7 @@ The `dotfiles/helpers/` directory is symlinked to `~/.helpers` and added to `$PA
 | `newrepo` | Creates a new local+GitHub repo with ai-rules subtree pre-installed. Interactive prompts for name, location, and visibility. |
 | `generate_gitconfig.sh` | Generates `~/.gitconfig` from a template (sourced automatically by `.profile` on shell startup). |
 | `generate_cmux_settings.sh` | Renders `~/.config/cmux/settings.json` from `dotfiles/cmux-settings.json`, substituting `__HOME__` with `$HOME`. Invoked from `installation/symlink.sh`. **Note:** edits made via cmux's settings UI are overwritten on the next `init.sh` / `run.sh` run — edit the template, not the rendered file. |
-| `cmux-random-sound` | Picks a random audio file from `~/.sounds/cmux/` and plays it via `afplay` in the background. Invoked by cmux's `notifications.command` hook on every notification. Honors `CMUX_RANDOM_SOUND_VOLUME` (a float passed as `afplay -v`); **default `0.4`** so the loudness-normalized clips don't jumpscare. Exits silently if the directory is missing/empty or the platform isn't darwin. |
+| `cmux-random-sound` | Picks a random audio file from `~/.sounds/cmux/` and plays it via `afplay` in the background. Invoked by cmux's `notifications.command` hook on every notification. Volume: `$CMUX_RANDOM_SOUND_VOLUME` env var > `~/.config/cmux/random-sound-volume` file > `0.4` default (loudness-normalized clips don't jumpscare). Set `$CMUX_RANDOM_SOUND_DEBUG=1` to print the picked file to stderr. Exits silently if the directory is missing/empty or the platform isn't darwin. |
 | `util.sh` | Shell utility functions like `externaldns` and `curlr` (sourced automatically by `.profile`). |
 
 ### Adding more cmux notification sounds
@@ -138,14 +138,23 @@ The `dotfiles/helpers/` directory is symlinked to `~/.helpers` and added to `$PA
 The cmux notification sound is randomized per-notification — one file is picked at random from `~/.sounds/cmux/` each time. To add a new sound:
 
 1. Drop a `.wav`, `.mp3`, `.aiff`, `.aif`, or `.m4a` file into `~/.sounds/cmux/` (or into `dotfiles/cmux/` if you want it tracked in the repo — the install symlinks the whole directory).
-2. Reload cmux config (`cmd+shift+,`) — actually unnecessary for new sounds (they're picked up at the next notification because the helper re-scans the directory each time), but useful if you've also edited `dotfiles/cmux-settings.json`.
+2. No reload needed for new sound files — the helper re-scans the directory on every notification, so the next ding picks them up automatically. Reload cmux config (`cmd+shift+,`) only if you've also edited `dotfiles/cmux-settings.json`.
 
-All sounds in `dotfiles/cmux/` are loudness-normalized to **-16 LUFS** (EBU R128) so no single clip is dramatically louder than the others. Playback volume defaults to `0.4` (40% of system volume) — quiet enough not to be a jumpscare, loud enough to notice. To override, set `CMUX_RANDOM_SOUND_VOLUME` in `.zshrc` (a float passed straight to `afplay -v`; useful range `0.0`–`1.0`; values above `1.0` amplify but may clip):
+All sounds in `dotfiles/cmux/` are loudness-normalized to **-16 LUFS** (EBU R128) so no single clip is dramatically louder than the others. Playback volume defaults to `0.4` (40% of system volume) — quiet enough not to be a jumpscare, loud enough to notice. To override the default, the helper checks two sources in order:
+
+1. **`$CMUX_RANDOM_SOUND_VOLUME`** environment variable. Easy from a shell — but **only effective if cmux inherits a shell environment.** If cmux is launched as a normal macOS GUI app (Dock, Spotlight, Finder), it will not source `.zshrc` and the env var won't be visible to the helper. If you launch cmux from a terminal, this works.
+2. **`~/.config/cmux/random-sound-volume`** — a tiny single-line file with the float value. Works regardless of how cmux was launched. Recommended path for GUI users.
 
 ```bash
+# Option 1: env var (shell-launched cmux)
 export CMUX_RANDOM_SOUND_VOLUME=1.0   # full system volume
 export CMUX_RANDOM_SOUND_VOLUME=0.2   # quieter than the default
+
+# Option 2: config file (works with GUI-launched cmux too)
+mkdir -p ~/.config/cmux && echo 0.6 > ~/.config/cmux/random-sound-volume
 ```
+
+Useful range `0.0`–`1.0`; values above `1.0` amplify but may clip. To verify which sound is being picked, set `CMUX_RANDOM_SOUND_DEBUG=1` and run the helper directly — the picked file path is printed to stderr.
 
 Re-normalize after dropping new files into `dotfiles/cmux/` so they match the existing loudness:
 

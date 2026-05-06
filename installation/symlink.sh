@@ -88,8 +88,10 @@ mkdir -p "$HOME/.sounds" "$HOME/.config/cmux"
 
 # One-time cleanup: prior installs symlinked $HOME/.sounds/cmux-notification.wav
 # into the repo. With the random-sound directory replacing the single file, that
-# symlink is now dangling. Remove it ONLY if it's a symlink whose target lives
-# under $HOME/dotfiles/ — never touch a regular file at that path.
+# symlink is now dangling. Remove it ONLY if it's a symlink whose RAW readlink
+# target starts with "$HOME/dotfiles/" — intentionally not canonicalized, so
+# relative symlinks or chains that resolve into the repo through other symlinked
+# paths are left alone. Conservative on purpose; never touch a regular file.
 if [ -L "$HOME/.sounds/cmux-notification.wav" ]; then
   OLD_TARGET="$(readlink "$HOME/.sounds/cmux-notification.wav")"
   case "$OLD_TARGET" in
