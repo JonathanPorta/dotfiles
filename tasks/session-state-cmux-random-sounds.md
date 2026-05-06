@@ -4,8 +4,8 @@ Last updated: 2026-05-05T00:00:00Z
 ### Current Position
 - **Current Phase:** Phase 3 (Implementation)
 - **Validation Review Mode:** auto-proceed
-- **Working on:** Task 2.0 (helper script) — about to start
-- **Status:** Task 1.0 complete (validated 7/7); commit pending in this batch
+- **Working on:** Task 3.0 (settings template) — next
+- **Status:** Task 2.0 complete (validated 9/9, AC-7 revised); commit pending in this batch
 - **Blocked:** No
 
 ### Key Decisions
@@ -17,6 +17,8 @@ Last updated: 2026-05-05T00:00:00Z
 - Acceptance criteria AC-1 through AC-15 approved this session
 - AC-16 added: `CMUX_RANDOM_SOUND_VOLUME` env var passed as `afplay -v` (unset = system default) — confirmed this session
 - Per-file loudness normalization is OUT OF SCOPE for v1 (tracked as potential follow-up) — confirmed this session
+- AC-7 threshold relaxed from `<100ms` to `<500ms` after measurement showed bash startup alone is 146ms on this system; original draft target was unachievable. Confirmed by human this session. PRD AC-7 carries a verbose note explaining the change.
+- During task 2.0 implementation: discovered BSD `find` does NOT descend through symlinked directories by default. Helper script uses `find -L` so the install-pipeline directory symlink works.
 - Validation Review Mode: auto-proceed (inferred from "continue in auto-edit/auto-write mode" — flag if wrong)
 - Branch: `jp/f/cmux-random-sounds` (per rule 10); single squash-merge PR titled `feat: Add Randomized cmux Notification Sounds`
 - AI does NOT push or open the PR (rule 09); paste-ready PR description goes to `/tmp/ai-dotfiles-pr-description-*.md` (rule 12)

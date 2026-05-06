@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# Picks a random audio file from $HOME/.sounds/cmux/ and plays it via afplay
+# in the background. Invoked by cmux's notifications.command hook.
+#
+# Behavior:
+#   - Exits 0 silently if the sound directory is missing or empty.
+#   - Exits 0 silently on non-darwin (afplay is macOS-only).
+#   - Backgrounds afplay so cmux's notification handling never blocks.
+#   - Honors $CMUX_RANDOM_SOUND_VOLUME (a float passed as `afplay -v`); when
+#     unset, no -v flag is passed (system default volume). Useful range is
+#     0.0-1.0; values >1.0 amplify but may clip.
+
+set -euo pipefail
+
+sound_dir="$HOME/.sounds/cmux"
+
+[ -d "$sound_dir" ] || exit 0
+[ "$(uname -s)" = "Darwin" ] || exit 0
+command -v afplay >/dev/null 2>&1 || exit 0
+
+# -L so a symlinked sound_dir (the install-pipeline default) is followed.
+sound="$(
+  find -L "$sound_dir" -type f \
+    \( -iname '*.aiff' -o -iname '*.aif' -o -iname '*.wav' \
+       -o -iname '*.mp3' -o -iname '*.m4a' \) |
+  awk 'BEGIN{srand()} {a[NR]=$0} END{if (NR) print a[int(rand()*NR)+1]}'
+)"
+
+[ -n "$sound" ] || exit 0
+
+if [ -n "${CMUX_RANDOM_SOUND_VOLUME:-}" ]; then
+  afplay -v "$CMUX_RANDOM_SOUND_VOLUME" "$sound" >/dev/null 2>&1 &
+else
+  afplay "$sound" >/dev/null 2>&1 &
+fi
