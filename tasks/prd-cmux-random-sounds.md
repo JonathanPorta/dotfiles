@@ -146,9 +146,17 @@ directory and introduces one new helper script that reads from that directory.
 - [ ] **AC-13:** Manual: triggering a cmux notification plays one of the sounds from `~/.sounds/cmux/`. Triggering several notifications in a row plays a mix of different sounds (not always the same one).
 - [ ] **AC-14:** `README.md` documents (a) the new helper script in the helpers table, (b) the `~/.sounds/cmux/` install location and how to add a sound, (c) how to reload cmux config so newly-edited settings take effect, and (d) third-party / license attribution for each new sound file.
 - [ ] **AC-15:** `git check-ignore -v` against each new file under `dotfiles/cmux/` and `dotfiles/helpers/cmux-random-sound` emits nothing (no accidental capture by `*secret*` or other globs).
-- [ ] **AC-16:** `dotfiles/helpers/cmux-random-sound` honors `CMUX_RANDOM_SOUND_VOLUME` (a float passed as `afplay -v`). When unset, no `-v` flag is passed (system default volume). README documents the env var and a recommended value range. Verified by:
-  - running `CMUX_RANDOM_SOUND_VOLUME=0.5 dotfiles/helpers/cmux-random-sound` and confirming `afplay -v 0.5 ...` appears in `ps`,
-  - and running it without the env var and confirming no `-v` flag appears.
+- [ ] **AC-16:** `dotfiles/helpers/cmux-random-sound` resolves the playback volume passed to `afplay -v` via this precedence (revised after PR #28 review feedback added the file fallback and `0.4` default):
+  1. `$CMUX_RANDOM_SOUND_VOLUME` env var (highest)
+  2. `$HOME/.config/cmux/random-sound-volume` (single-line float file; empty / whitespace-only contents fall through)
+  3. `0.4` default (lowest)
+
+  Invalid values (anything that isn't digits + at most one dot — e.g. `quiet`, `0.4 # comment`) fall through to `0.4` as a guard. README documents all three sources, the GUI-launched-cmux caveat that motivates the file fallback, and the user-managed nature of the config file. Verified by:
+  - `CMUX_RANDOM_SOUND_VOLUME=0.7 helper` → `afplay -v 0.7 ...` in `ps`,
+  - env unset, file contains `0.55` → `afplay -v 0.55 ...` in `ps`,
+  - env unset, file absent → `afplay -v 0.4 ...` in `ps`,
+  - env unset, file empty / whitespace-only → `afplay -v 0.4 ...`,
+  - garbage value like `quiet` → `afplay -v 0.4 ...`.
 
 ## Non-Goals (additions)
 - ~~Per-file loudness normalization (LUFS targeting via `ffmpeg loudnorm`). Tracked as potential follow-up if perceived loudness drift across the source files becomes annoying.~~ **Reversed mid-PR:** human opted to add EBU R128 normalization to all 13 files at -16 LUFS / -1.5 dBTP / 11 LU LRA, and to set the helper's default playback volume to `0.4`. AC-3 was revised accordingly (no longer byte-equal). PR #28's commit `b31552a` preserves the pre-normalization bytes if ever needed.

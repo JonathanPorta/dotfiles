@@ -31,9 +31,11 @@
   // Disable cmux's built-in sound and instead invoke a helper script that picks
   // a random sound from ~/.sounds/cmux/ on each notification. The helper lives
   // at dotfiles/helpers/cmux-random-sound and is PATH-exposed via ~/.helpers/.
-  // Drop a .wav/.mp3/.aiff/.aif/.m4a into ~/.sounds/cmux/ and reload cmux config
-  // (cmd+shift+,) to pick it up. Volume can be tuned with the env var
-  // CMUX_RANDOM_SOUND_VOLUME (a float passed as `afplay -v`); unset = system default.
+  // Drop a .wav/.mp3/.aiff/.aif/.m4a into ~/.sounds/cmux/ — no reload needed
+  // for new sound files (the helper scans the directory each time). Reload
+  // cmux config (cmd+shift+,) only after editing this template itself.
+  // Volume precedence: $CMUX_RANDOM_SOUND_VOLUME env var, then
+  // ~/.config/cmux/random-sound-volume (single-line float file), then 0.4 default.
   "notifications": {
     "sound": "none",
     "command": "__HOME__/.helpers/cmux-random-sound"

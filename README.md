@@ -143,7 +143,7 @@ The cmux notification sound is randomized per-notification — one file is picke
 All sounds in `dotfiles/cmux/` are loudness-normalized to **-16 LUFS** (EBU R128) so no single clip is dramatically louder than the others. Playback volume defaults to `0.4` (40% of system volume) — quiet enough not to be a jumpscare, loud enough to notice. To override the default, the helper checks two sources in order:
 
 1. **`$CMUX_RANDOM_SOUND_VOLUME`** environment variable. Easy from a shell — but **only effective if cmux inherits a shell environment.** If cmux is launched as a normal macOS GUI app (Dock, Spotlight, Finder), it will not source `.zshrc` and the env var won't be visible to the helper. If you launch cmux from a terminal, this works.
-2. **`~/.config/cmux/random-sound-volume`** — a tiny single-line file with the float value. Works regardless of how cmux was launched. Recommended path for GUI users.
+2. **`~/.config/cmux/random-sound-volume`** — a tiny single-line file with the float value. Works regardless of how cmux was launched. Recommended path for GUI users. *Intentionally user-managed and not seeded by `installation/symlink.sh` — create it yourself when you want it.*
 
 ```bash
 # Option 1: env var (shell-launched cmux)

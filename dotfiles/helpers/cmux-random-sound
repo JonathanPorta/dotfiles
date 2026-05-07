@@ -44,7 +44,11 @@ if [ -z "$volume" ] && [ -r "$HOME/.config/cmux/random-sound-volume" ]; then
   # tr to strip whitespace/newlines; ignore the file silently if it's empty.
   volume="$(tr -d '[:space:]' < "$HOME/.config/cmux/random-sound-volume")"
 fi
-volume="${volume:-0.4}"
+# Sanity: reject anything that isn't a plausible float (digits + at most one dot).
+# Keeps a typo like `quiet` or `0.4 # comment` from silently breaking afplay.
+case "$volume" in
+  ''|*[!0-9.]*|*.*.*) volume="0.4" ;;
+esac
 
 [ -n "${CMUX_RANDOM_SOUND_DEBUG:-}" ] && printf 'cmux-random-sound: %s (vol=%s)\n' "$sound" "$volume" >&2
 
