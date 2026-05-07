@@ -26,12 +26,14 @@ sound_dir="$HOME/.sounds/cmux"
 command -v afplay >/dev/null 2>&1 || exit 0
 
 # -L so a symlinked sound_dir (the install-pipeline default) is followed.
+# `2>/dev/null || true` swallows permission errors on stray subdirectories;
+# pipefail would otherwise propagate find's non-zero exit and kill the helper.
 # Seed awk with $RANDOM + PID so multiple notifications fired within the same
 # second don't all collide on the same pick (default srand() = epoch seconds).
 sound="$(
-  find -L "$sound_dir" -type f \
-    \( -iname '*.aiff' -o -iname '*.aif' -o -iname '*.wav' \
-       -o -iname '*.mp3' -o -iname '*.m4a' \) |
+  { find -L "$sound_dir" -type f \
+      \( -iname '*.aiff' -o -iname '*.aif' -o -iname '*.wav' \
+         -o -iname '*.mp3' -o -iname '*.m4a' \) 2>/dev/null || true; } |
   awk -v seed="${RANDOM}${$}" \
     'BEGIN{srand(seed)} {a[NR]=$0} END{if (NR) print a[int(rand()*NR)+1]}'
 )"
@@ -44,10 +46,15 @@ if [ -z "$volume" ] && [ -r "$HOME/.config/cmux/random-sound-volume" ]; then
   # tr to strip whitespace/newlines; ignore the file silently if it's empty.
   volume="$(tr -d '[:space:]' < "$HOME/.config/cmux/random-sound-volume")"
 fi
-# Sanity: reject anything that isn't a plausible float (digits + at most one dot).
-# Keeps a typo like `quiet` or `0.4 # comment` from silently breaking afplay.
+# Sanity: reject anything that isn't a plausible float (digits + at most one dot,
+# and at least one digit). Keeps typos like `quiet`, `0.4 # comment`, `1.2.3`,
+# or a bare `.` from silently breaking afplay.
 case "$volume" in
   ''|*[!0-9.]*|*.*.*) volume="0.4" ;;
+esac
+case "$volume" in
+  *[0-9]*) ;;
+  *) volume="0.4" ;;
 esac
 
 [ -n "${CMUX_RANDOM_SOUND_DEBUG:-}" ] && printf 'cmux-random-sound: %s (vol=%s)\n' "$sound" "$volume" >&2
