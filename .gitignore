@@ -4,3 +4,9 @@
 *id_rsa*
 # ai-rules-local-config
 .ai-local/
+
+# Local-only cmux notification sounds (personal recordings, anything not
+# intended for the public repo). The cmux-random-sound helper recurses into
+# subdirectories of ~/.sounds/cmux/, so files dropped here join the rotation
+# without being committed.
+dotfiles/cmux/local/

@@ -82,19 +82,40 @@ else
   ln -s "$HOME/dotfiles/helpers" "$HOME/.helpers"
 fi
 
-# cmux settings + custom notification sound
+# cmux settings + random notification sound directory
 echo "Ensure '$HOME/.sounds' and '$HOME/.config/cmux' exist..."
 mkdir -p "$HOME/.sounds" "$HOME/.config/cmux"
 
-echo "Ensure symlink of '$HOME/.sounds/cmux-notification.wav' points to '$HOME/dotfiles/cmux-notification.wav'..."
-if [ -L "$HOME/.sounds/cmux-notification.wav" ] && [ "$(readlink "$HOME/.sounds/cmux-notification.wav")" = "$HOME/dotfiles/cmux-notification.wav" ]; then
-  echo "'$HOME/.sounds/cmux-notification.wav' already points to '$HOME/dotfiles/cmux-notification.wav' - nothing to do."
-elif [ -e "$HOME/.sounds/cmux-notification.wav" ] || [ -L "$HOME/.sounds/cmux-notification.wav" ]; then
-  echo "WARNING: '$HOME/.sounds/cmux-notification.wav' exists but does not point to '$HOME/dotfiles/cmux-notification.wav' - relinking."
-  mv "$HOME/.sounds/cmux-notification.wav" "$HOME/.sounds/cmux-notification.wav.old$NOW"
-  ln -s "$HOME/dotfiles/cmux-notification.wav" "$HOME/.sounds/cmux-notification.wav"
+# One-time cleanup: prior installs symlinked $HOME/.sounds/cmux-notification.wav
+# into the repo. With the random-sound directory replacing the single file, that
+# symlink is now dangling. Remove it ONLY if it's a symlink whose RAW readlink
+# target starts with "$HOME/dotfiles/" — intentionally not canonicalized, so
+# relative symlinks or chains that resolve into the repo through other symlinked
+# paths are left alone. Conservative on purpose; never touch a regular file.
+if [ -L "$HOME/.sounds/cmux-notification.wav" ]; then
+  OLD_TARGET="$(readlink "$HOME/.sounds/cmux-notification.wav")"
+  case "$OLD_TARGET" in
+    "$HOME/dotfiles/"*)
+      echo "Removing stale '$HOME/.sounds/cmux-notification.wav' symlink (target was '$OLD_TARGET')..."
+      rm "$HOME/.sounds/cmux-notification.wav"
+      ;;
+    *)
+      echo "WARNING: '$HOME/.sounds/cmux-notification.wav' is a symlink to '$OLD_TARGET' (not into $HOME/dotfiles/); leaving it alone."
+      ;;
+  esac
+elif [ -e "$HOME/.sounds/cmux-notification.wav" ]; then
+  echo "WARNING: '$HOME/.sounds/cmux-notification.wav' exists as a regular file; leaving it alone."
+fi
+
+echo "Ensure symlink of '$HOME/.sounds/cmux' points to '$HOME/dotfiles/cmux'..."
+if [ -L "$HOME/.sounds/cmux" ] && [ "$(readlink "$HOME/.sounds/cmux")" = "$HOME/dotfiles/cmux" ]; then
+  echo "'$HOME/.sounds/cmux' already points to '$HOME/dotfiles/cmux' - nothing to do."
+elif [ -e "$HOME/.sounds/cmux" ] || [ -L "$HOME/.sounds/cmux" ]; then
+  echo "WARNING: '$HOME/.sounds/cmux' exists but does not point to '$HOME/dotfiles/cmux' - relinking."
+  mv "$HOME/.sounds/cmux" "$HOME/.sounds/cmux.old$NOW"
+  ln -s "$HOME/dotfiles/cmux" "$HOME/.sounds/cmux"
 else
-  ln -s "$HOME/dotfiles/cmux-notification.wav" "$HOME/.sounds/cmux-notification.wav"
+  ln -s "$HOME/dotfiles/cmux" "$HOME/.sounds/cmux"
 fi
 
 echo "Rendering '$HOME/.config/cmux/settings.json' from template..."

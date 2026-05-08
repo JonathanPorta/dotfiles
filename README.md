@@ -91,7 +91,7 @@ HEADLESS=true ./init.sh
 
 | | |
 |---|---|
-| **Purpose** | Clones this repo (via HTTPS), symlinks shell configs (`.zshrc`, `.zshenv`, `.zprofile`, `.gitignore_global`, `.chruby`, `.helpers`) into `$HOME`, symlinks `cmux-notification.wav` into `~/.sounds/` and renders `~/.config/cmux/settings.json` from the JSONC template, installs `jq` and `zsh` if missing, and syncs GitHub `authorized_keys`. |
+| **Purpose** | Clones this repo (via HTTPS), symlinks shell configs (`.zshrc`, `.zshenv`, `.zprofile`, `.gitignore_global`, `.chruby`, `.helpers`) into `$HOME`, directory-symlinks `dotfiles/cmux/` (the cmux notification-sound pool) into `~/.sounds/cmux/` and renders `~/.config/cmux/settings.json` from the JSONC template (which delegates per-notification sound playback to the `cmux-random-sound` helper), installs `jq` and `zsh` if missing, and syncs GitHub `authorized_keys`. |
 | **Idempotency** | **Mostly safe to re-run.** If the repo already exists it does a `git fetch` instead of cloning. Existing dotfiles in `$HOME` are renamed to `*.old<timestamp>` before re-linking, so nothing is silently lost. |
 | **Destructive?** | Moves existing `.zshrc`, `.zshenv`, `.zprofile`, `.gitignore_global`, `.chruby` to timestamped backups. Truncates `authorized_keys`. **Overwrites `~/.config/cmux/settings.json`** from the tracked template — edit `dotfiles/cmux-settings.json`, not the rendered file. |
 
@@ -130,7 +130,48 @@ The `dotfiles/helpers/` directory is symlinked to `~/.helpers` and added to `$PA
 | `newrepo` | Creates a new local+GitHub repo with ai-rules subtree pre-installed. Interactive prompts for name, location, and visibility. |
 | `generate_gitconfig.sh` | Generates `~/.gitconfig` from a template (sourced automatically by `.profile` on shell startup). |
 | `generate_cmux_settings.sh` | Renders `~/.config/cmux/settings.json` from `dotfiles/cmux-settings.json`, substituting `__HOME__` with `$HOME`. Invoked from `installation/symlink.sh`. **Note:** edits made via cmux's settings UI are overwritten on the next `init.sh` / `run.sh` run — edit the template, not the rendered file. |
+| `cmux-random-sound` | Picks a random audio file from `~/.sounds/cmux/` and plays it via `afplay` in the background. Invoked by cmux's `notifications.command` hook on every notification. Volume: `$CMUX_RANDOM_SOUND_VOLUME` env var > `~/.config/cmux/random-sound-volume` file > `0.4` default (loudness-normalized clips don't jumpscare). Set `$CMUX_RANDOM_SOUND_DEBUG=1` to print the picked file to stderr. Exits silently if the directory is missing/empty or the platform isn't darwin. |
 | `util.sh` | Shell utility functions like `externaldns` and `curlr` (sourced automatically by `.profile`). |
+
+### Adding more cmux notification sounds
+
+The cmux notification sound is randomized per-notification — one file is picked at random from `~/.sounds/cmux/` each time (the helper recurses into subdirectories, so nested layouts are fine). To add a new sound:
+
+1. Drop a `.wav`, `.mp3`, `.aiff`, `.aif`, or `.m4a` file into `~/.sounds/cmux/` (or into `dotfiles/cmux/` if you want it tracked in the public repo — the install symlinks the whole directory).
+2. **For personal/sensitive recordings you don't want in the public repo** (e.g. voice notes from family / friends), drop them into `dotfiles/cmux/local/` instead. That subdirectory is gitignored, so files there never land on GitHub but still get scanned by the helper. Naming alone does not protect against voice-cloning attacks — never publish samples of someone's actual voice to a public repo.
+3. No reload needed for new sound files — the helper re-scans the directory on every notification, so the next ding picks them up automatically. Reload cmux config (`cmd+shift+,`) only if you've also edited `dotfiles/cmux-settings.json`.
+
+All sounds in `dotfiles/cmux/` are loudness-normalized to **-16 LUFS** (EBU R128) so no single clip is dramatically louder than the others. Playback volume defaults to `0.4` (40% of system volume) — quiet enough not to be a jumpscare, loud enough to notice. To override the default, the helper checks two sources in order:
+
+1. **`$CMUX_RANDOM_SOUND_VOLUME`** environment variable. Easy from a shell — but **only effective if cmux inherits a shell environment.** If cmux is launched as a normal macOS GUI app (Dock, Spotlight, Finder), it will not source `.zshrc` and the env var won't be visible to the helper. If you launch cmux from a terminal, this works.
+2. **`~/.config/cmux/random-sound-volume`** — a tiny single-line file with the float value. Works regardless of how cmux was launched. Recommended path for GUI users. *Intentionally user-managed and not seeded by `installation/symlink.sh` — create it yourself when you want it.*
+
+```bash
+# Option 1: env var (shell-launched cmux)
+export CMUX_RANDOM_SOUND_VOLUME=1.0   # full system volume
+export CMUX_RANDOM_SOUND_VOLUME=0.2   # quieter than the default
+
+# Option 2: config file (works with GUI-launched cmux too)
+mkdir -p ~/.config/cmux && echo 0.6 > ~/.config/cmux/random-sound-volume
+```
+
+Useful range `0.0`–`1.0`; values above `1.0` amplify but may clip. To verify which sound is being picked, set `CMUX_RANDOM_SOUND_DEBUG=1` and run the helper directly — the picked file path is printed to stderr.
+
+Re-normalize after dropping new files into `dotfiles/cmux/` so they match the existing loudness:
+
+```bash
+brew install ffmpeg
+pipx install ffmpeg-normalize  # one-time
+
+ffmpeg-normalize dotfiles/cmux/*.wav \
+  -nt ebu -t -16 -tp -1.5 -lrt 11 \
+  -of /tmp/cmux-normalized -ar 44100 -c:a pcm_s16le -ext wav -f
+ffmpeg-normalize dotfiles/cmux/*.mp3 \
+  -nt ebu -t -16 -tp -1.5 -lrt 11 \
+  -of /tmp/cmux-normalized -ar 44100 -c:a libmp3lame -b:a 128k -ext mp3 -f
+
+cp /tmp/cmux-normalized/* dotfiles/cmux/
+```
 
 ```bash
 newrepo                 # run from anywhere
@@ -151,9 +192,15 @@ newrepo my-app ~/src    # non-interactive
 
 ## Third-Party Notices
 
-### dotfiles/cmux-notification.wav
+### dotfiles/cmux/ — notification sound pool
 
-- **Title:** Media Help
-- **Author:** sonic-boom (Envato Elements)
-- **Source:** https://elements.envato.com/media-help-NKYMQHD
-- **License:** Envato Elements (https://elements.envato.com/license-terms), licensed to Jonathan Porta on 2026-04-26 for use in this dotfiles configuration. The Envato Elements license is non-transferable — if you fork this repo, you'll need your own license to use this asset.
+All audio files under `dotfiles/cmux/` are licensed via [Envato Elements](https://elements.envato.com/license-terms), licensed to Jonathan Porta for use in this dotfiles configuration. The Envato Elements license is **non-transferable** — if you fork this repo, you'll need your own license (or replace the files with your own sounds) to use these assets.
+
+| File | Title | Author / Source |
+|---|---|---|
+| `dingding.wav` | Media Help | sonic-boom — [https://elements.envato.com/media-help-NKYMQHD](https://elements.envato.com/media-help-NKYMQHD) (licensed 2026-04-26; previously committed as `dotfiles/cmux-notification.wav`) |
+| `british-detective-can-i-ask-you-something.wav` | British Detective Stock Lines Vocal Female Can I Ask You Something | Envato Elements (supplied via [issue #26](https://github.com/JonathanPorta/dotfiles/issues/26)) |
+| `british-male-what-do-you-think.wav` | Vox Male What Do You Think Uk | Envato Elements (supplied via [issue #26](https://github.com/JonathanPorta/dotfiles/issues/26)) |
+| `english-warrior-can-you-help-me.wav` | English Warrior Dialogue Vocal Can You Help Me Male 30s Voice | Envato Elements (supplied via [issue #26](https://github.com/JonathanPorta/dotfiles/issues/26)) |
+| `wizard-i-am-ready-and-waiting.wav` | Wizard Dialogue I Am Ready And Waiting | Envato Elements (supplied via [issue #26](https://github.com/JonathanPorta/dotfiles/issues/26)) |
+| `man-asking-for-help-{1..4}.wav`, `.mp3` | Man Asking For Help (4 variants × wav + mp3) | Envato Elements (supplied via [issue #26](https://github.com/JonathanPorta/dotfiles/issues/26)) |
