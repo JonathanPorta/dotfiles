@@ -135,10 +135,11 @@ The `dotfiles/helpers/` directory is symlinked to `~/.helpers` and added to `$PA
 
 ### Adding more cmux notification sounds
 
-The cmux notification sound is randomized per-notification — one file is picked at random from `~/.sounds/cmux/` each time. To add a new sound:
+The cmux notification sound is randomized per-notification — one file is picked at random from `~/.sounds/cmux/` each time (the helper recurses into subdirectories, so nested layouts are fine). To add a new sound:
 
-1. Drop a `.wav`, `.mp3`, `.aiff`, `.aif`, or `.m4a` file into `~/.sounds/cmux/` (or into `dotfiles/cmux/` if you want it tracked in the repo — the install symlinks the whole directory).
-2. No reload needed for new sound files — the helper re-scans the directory on every notification, so the next ding picks them up automatically. Reload cmux config (`cmd+shift+,`) only if you've also edited `dotfiles/cmux-settings.json`.
+1. Drop a `.wav`, `.mp3`, `.aiff`, `.aif`, or `.m4a` file into `~/.sounds/cmux/` (or into `dotfiles/cmux/` if you want it tracked in the public repo — the install symlinks the whole directory).
+2. **For personal/sensitive recordings you don't want in the public repo** (e.g. voice notes from family / friends), drop them into `dotfiles/cmux/local/` instead. That subdirectory is gitignored, so files there never land on GitHub but still get scanned by the helper. Naming alone does not protect against voice-cloning attacks — never publish samples of someone's actual voice to a public repo.
+3. No reload needed for new sound files — the helper re-scans the directory on every notification, so the next ding picks them up automatically. Reload cmux config (`cmd+shift+,`) only if you've also edited `dotfiles/cmux-settings.json`.
 
 All sounds in `dotfiles/cmux/` are loudness-normalized to **-16 LUFS** (EBU R128) so no single clip is dramatically louder than the others. Playback volume defaults to `0.4` (40% of system volume) — quiet enough not to be a jumpscare, loud enough to notice. To override the default, the helper checks two sources in order:
 
