@@ -130,7 +130,7 @@ The `dotfiles/helpers/` directory is symlinked to `~/.helpers` and added to `$PA
 | `newrepo` | Creates a new local+GitHub repo with ai-rules subtree pre-installed. Interactive prompts for name, location, and visibility. |
 | `generate_gitconfig.sh` | Generates `~/.gitconfig` from a template (sourced automatically by `.profile` on shell startup). |
 | `generate_cmux_settings.sh` | Renders `~/.config/cmux/settings.json` from `dotfiles/cmux-settings.json`, substituting `__HOME__` with `$HOME`. Invoked from `installation/symlink.sh`. **Note:** edits made via cmux's settings UI are overwritten on the next `init.sh` / `run.sh` run — edit the template, not the rendered file. |
-| `cmux-random-sound` | Picks a random audio file from `~/.sounds/cmux/` and plays it via `afplay` in the background. Invoked by cmux's `notifications.command` hook on every notification. Volume: `$CMUX_RANDOM_SOUND_VOLUME` env var > `~/.config/cmux/random-sound-volume` file > `0.4` default (loudness-normalized clips don't jumpscare). Set `$CMUX_RANDOM_SOUND_DEBUG=1` to print the picked file to stderr. Exits silently if the directory is missing/empty or the platform isn't darwin. |
+| `cmux-random-sound` | Picks a random audio file from `~/.sounds/cmux/` and plays it via `afplay` in the background. Invoked by cmux's `notifications.command` hook on every notification. Volume: `$CMUX_RANDOM_SOUND_VOLUME` env var > `~/.config/cmux/random-sound-volume` file > `0.4` default (loudness-normalized clips don't jumpscare). Set `$CMUX_RANDOM_SOUND_DEBUG=1` to print the picked file to stderr. Skips playback while any macOS Focus / Do Not Disturb mode is active (probed via a user-created Shortcut — see the "Do Not Disturb / Focus" section below); set `$CMUX_RANDOM_SOUND_IGNORE_DND=1` to override. Exits silently if the directory is missing/empty or the platform isn't darwin. |
 | `util.sh` | Shell utility functions like `externaldns` and `curlr` (sourced automatically by `.profile`). |
 
 ### Adding more cmux notification sounds
@@ -156,6 +156,33 @@ mkdir -p ~/.config/cmux && echo 0.6 > ~/.config/cmux/random-sound-volume
 ```
 
 Useful range `0.0`–`1.0`; values above `1.0` amplify but may clip. To verify which sound is being picked, set `CMUX_RANDOM_SOUND_DEBUG=1` and run the helper directly — the picked file path is printed to stderr.
+
+### Do Not Disturb / Focus
+
+The helper exits silently while any macOS Focus / Do Not Disturb mode is engaged, so cmux stops ringing the moment you toggle on DND from Control Center.
+
+**One-time setup** (the helper relies on a user-created Shortcut because macOS Tahoe retired every other shell-accessible Focus signal — `notifyutil` keys are dead, and `~/Library/DoNotDisturb/DB/Assertions.json` is now Full-Disk-Access-gated):
+
+1. Open the **Shortcuts** app.
+2. **File → New Shortcut**.
+3. Name it exactly `cmux-focus-check` (the helper looks for that name).
+4. In the action search panel, find **"Get Current Focus"** and drag it in. That's the whole shortcut — its output (the focus name, or empty when no focus) becomes the shortcut's return value.
+5. Save (⌘S). No need to add it to the Dock or menu bar.
+
+Verify it works (turn DND on first, then off, and re-run between):
+
+```bash
+tmp=$(mktemp -t focus.XXXXXX)
+shortcuts run cmux-focus-check --output-path "$tmp" --output-type public.plain-text
+cat "$tmp"; echo
+rm -f "$tmp"
+```
+
+You should see the focus name (e.g. `Do Not Disturb`) when one is active, empty when none is.
+
+The standard cmux notification banner is unaffected — only this helper's random-sound playback is suppressed. macOS itself decides whether the OS-rendered banner appears based on cmux's per-app Focus filter settings.
+
+To bypass the check (debugging, or you want sound during DND for a specific cmux you've otherwise allowed through), set `CMUX_RANDOM_SOUND_IGNORE_DND=1`. If `shortcuts` is missing or the `cmux-focus-check` shortcut doesn't exist on the machine, the helper fails open and plays the sound — a broken probe never silences cmux. Cost is ~0.6–0.9s of CLI overhead per notification (Apple's Shortcuts runtime is not fast); the sound itself is backgrounded so cmux's notification handling never blocks. If that latency becomes painful across more machines, the longer-term plan is the [`notifyctl` sketch PRD](tasks/prd-notifyctl.md) — a single FDA-grantable Go binary that reads the DND state directly.
 
 Re-normalize after dropping new files into `dotfiles/cmux/` so they match the existing loudness:
 

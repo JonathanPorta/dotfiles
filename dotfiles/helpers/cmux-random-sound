@@ -5,6 +5,20 @@
 # Behavior:
 #   - Exits 0 silently if the sound directory is missing or empty.
 #   - Exits 0 silently on non-darwin (afplay is macOS-only).
+#   - Exits 0 silently when any macOS Focus / Do Not Disturb mode is active,
+#     so the helper honors the OS-level "don't make noise" signal. Detection
+#     uses the Shortcuts CLI because Apple has retired every other
+#     shell-accessible Focus signal by macOS Tahoe (26): notifyutil keys are
+#     dead, and ~/Library/DoNotDisturb/DB/Assertions.json is now TCC-gated
+#     (requires Full Disk Access — which can't be cleanly granted to a shell
+#     script). Setup: create a Shortcut named `cmux-focus-check` whose body
+#     is just the "Get Current Focus" action, so its output is the focus
+#     name when one is active and empty otherwise. See the README "Do Not
+#     Disturb / Focus" section for the full walkthrough. Set
+#     $CMUX_RANDOM_SOUND_IGNORE_DND to bypass the check (debugging, or you
+#     want sound during DND for a specific cmux). If `shortcuts` is missing,
+#     the named shortcut doesn't exist, or the CLI errors, we fail open and
+#     play the sound — a broken probe never silences cmux.
 #   - Backgrounds afplay so cmux's notification handling never blocks.
 #   - Volume precedence (highest first):
 #       1. $CMUX_RANDOM_SOUND_VOLUME (env var)
@@ -24,6 +38,30 @@ sound_dir="$HOME/.sounds/cmux"
 [ -d "$sound_dir" ] || exit 0
 [ "$(uname -s)" = "Darwin" ] || exit 0
 command -v afplay >/dev/null 2>&1 || exit 0
+
+# Skip playback when any macOS Focus / DND mode is active. `shortcuts run`
+# writes the shortcut's output only when `--output-path` is given, so we
+# pipe through a tmpfile. The shortcut returns the focus name (e.g.
+# "Do Not Disturb", "Work") when one is engaged, or empty when none is. Fail
+# open on any error path. The `|| true` after `shortcuts run` is required
+# under `set -e` (a missing shortcut or missing CLI would otherwise abort).
+if [ -z "${CMUX_RANDOM_SOUND_IGNORE_DND:-}" ] && command -v shortcuts >/dev/null 2>&1; then
+  focus_out="$(mktemp -t cmux-focus.XXXXXX 2>/dev/null)" || focus_out=""
+  if [ -n "$focus_out" ]; then
+    shortcuts run cmux-focus-check --output-path "$focus_out" --output-type public.plain-text >/dev/null 2>&1 || true
+    # `None` / `No Focus` are defensive — Shortcuts may emit those instead of
+    # an empty string depending on how the user wired the shortcut.
+    focus_name="$(tr -d '\r\n' < "$focus_out" 2>/dev/null | awk '{$1=$1; print}')"
+    rm -f "$focus_out"
+    case "$focus_name" in
+      ''|'None'|'No Focus') ;;
+      *)
+        [ -n "${CMUX_RANDOM_SOUND_DEBUG:-}" ] && printf 'cmux-random-sound: focus active (%s), skipping playback\n' "$focus_name" >&2
+        exit 0
+        ;;
+    esac
+  fi
+fi
 
 # -L so a symlinked sound_dir (the install-pipeline default) is followed.
 # `2>/dev/null || true` swallows permission errors on stray subdirectories;
