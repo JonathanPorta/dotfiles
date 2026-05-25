@@ -33,11 +33,22 @@ echo_green "Done."
 # change default shell
 echo_green "Setting zsh to default shell..."
 source $HOME/.zshrc
-# Use /bin/zsh on macOS to avoid /etc/shells issues with Homebrew zsh
+# Resolve the desired login shell and the one currently on record. Reading the
+# current shell needs no privileges (dscl/getent), so we can check first and
+# only `sudo chsh` when it would actually change something — otherwise a
+# re-run prompts for a sudo password just to set the shell to what it already is.
+# Use /bin/zsh on macOS to avoid /etc/shells issues with Homebrew zsh.
 if [ "$(uname -s)" = "Darwin" ]; then
-  sudo chsh -s /bin/zsh "$USER"
+  desired_shell="/bin/zsh"
+  current_shell="$(dscl . -read "/Users/$USER" UserShell 2>/dev/null | awk '{print $2}')"
 else
-  sudo chsh -s "$(command -v zsh)" "$USER"
+  desired_shell="$(command -v zsh)"
+  current_shell="$(getent passwd "$USER" 2>/dev/null | cut -d: -f7)"
+fi
+if [ "$current_shell" = "$desired_shell" ]; then
+  echo_green "Default shell is already '$desired_shell' - skipping chsh (no password needed)."
+else
+  sudo chsh -s "$desired_shell" "$USER"
 fi
 source $HOME/.zshrc
 echo_green "Done."
