@@ -121,4 +121,69 @@ fi
 echo "Rendering '$HOME/.config/cmux/settings.json' from template..."
 "$HOME/dotfiles/helpers/generate_cmux_settings.sh"
 
+# cmux Do Not Disturb / Focus support (macOS only).
+# The cmux-random-sound helper silences notification sounds while a macOS Focus
+# or Do Not Disturb mode is active, but only if a user-created Shortcut named
+# `cmux-focus-check` exists (Apple gated every other shell-readable Focus signal
+# on Tahoe, and the `shortcuts` CLI can't create shortcuts). So we can't do this
+# step for the user — we can only offer to print the one-time manual setup.
+# Idempotent: if the Shortcut already exists we say so and skip the prompt. The
+# prompt defaults to "no" after a short timeout, and is skipped entirely when
+# stdin isn't a TTY, so unattended installs never block. The `read` timeout
+# returns non-zero, which is safe here because it sits inside an `if` condition
+# (exempt from `set -e`).
+if [ "$OS" = 'darwin' ]; then
+  if command -v shortcuts >/dev/null 2>&1 && shortcuts list 2>/dev/null | grep -Fqx 'cmux-focus-check'; then
+    echo "cmux DND/Focus support: 'cmux-focus-check' Shortcut already present - notification sounds will respect Focus/DND."
+  else
+    echo "cmux can silence its notification sounds while macOS Focus / Do Not Disturb is on,"
+    echo "but that needs a one-time Shortcut you create by hand (the CLI can't make it)."
+    reply=""
+    if [ -t 0 ]; then
+      printf "Show the cmux Focus/DND setup steps now? [y/N] (defaults to no in 8s) "
+      if read -t 8 -n 1 -r reply </dev/tty; then echo; else echo; reply=""; fi
+    fi
+    case "$reply" in
+      [Yy])
+        cat <<'DNDSETUP'
+
+  cmux Focus/DND setup — do this once per machine:
+    1. Open Shortcuts.app and create a New Shortcut (the + button).
+    2. In the action list, search for "Get Current Focus" and drag it in.
+       That single action IS the whole shortcut: its output is the active
+       Focus name when one is on, or empty when none is.
+    3. Rename the shortcut to exactly:  cmux-focus-check
+    4. Close Shortcuts (it saves automatically).
+
+  Then verify it (prints the Focus name when one is on, empty otherwise):
+    t=$(mktemp); shortcuts run cmux-focus-check --output-path "$t" --output-type public.plain-text; echo "focus=[$(cat "$t")]"; rm -f "$t"
+
+  Notes:
+    - The first run may show a one-time macOS permission prompt to read your
+      Focus state - approve it (it won't ask again).
+    - Until this Shortcut exists the helper "fails open" and still plays sounds.
+    - Set CMUX_RANDOM_SOUND_IGNORE_DND=1 to bypass the check for a given cmux.
+    - Full walkthrough: README "Do Not Disturb / Focus" section.
+
+DNDSETUP
+        # Block (no timeout) so the steps stay on screen and the installer waits
+        # while you actually go create the Shortcut. `-s` keeps the keypress from
+        # echoing; `|| true` keeps `set -e` happy if stdin closes (e.g. EOF).
+        printf "Take your time — go create the Shortcut now, then press any key here to continue... "
+        read -n 1 -r -s </dev/tty || true
+        echo
+        # Auto-check whether it took, so you get immediate confirmation.
+        if command -v shortcuts >/dev/null 2>&1 && shortcuts list 2>/dev/null | grep -Fqx 'cmux-focus-check'; then
+          echo "OK: 'cmux-focus-check' Shortcut detected - cmux sounds will now respect Focus/DND."
+        else
+          echo "Note: no 'cmux-focus-check' Shortcut detected yet. No rush - create it whenever; nothing here needs re-running once it exists."
+        fi
+        ;;
+      *)
+        echo "Skipped cmux DND/Focus setup. To enable later: create a Shortcut named 'cmux-focus-check' (README \"Do Not Disturb / Focus\"), or re-run this installer."
+        ;;
+    esac
+  fi
+fi
+
 # GPG configuration is handled by installation/gpg.sh

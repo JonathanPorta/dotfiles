@@ -22,8 +22,10 @@
 .AppleDouble
 .LSOverride
 
-# Icon must end with two \r
-Icon
+# Custom macOS folder-icon resource. The real file is named "Icon" followed
+# by a carriage return; the bracketed CR below matches exactly that and stops
+# an editor from stripping it (a bare "Icon" would ignore every icon/Icon dir).
+Icon[]
 
 # Thumbnails
 ._*
