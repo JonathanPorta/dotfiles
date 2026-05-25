@@ -161,6 +161,20 @@ Useful range `0.0`–`1.0`; values above `1.0` amplify but may clip. To verify w
 
 The helper exits silently while any macOS Focus / Do Not Disturb mode is engaged, so cmux stops ringing the moment you toggle on DND from Control Center.
 
+It's checked live on every notification, and **any** Focus counts — not just Do Not Disturb:
+
+| Focus active | cmux sound |
+| --- | --- |
+| Do Not Disturb | 🔇 silent |
+| Work | 🔇 silent |
+| Sleep | 🔇 silent |
+| Reduce Interruptions | 🔇 silent |
+| Nap | 🔇 silent |
+| Driving | 🔇 silent |
+| _(none)_ | 🔊 plays |
+
+If *any* Focus is on, cmux stays quiet; with no Focus engaged, it plays. Toggle a Focus on/off and the very next notification reflects it — no reload needed.
+
 **One-time setup** (the helper relies on a user-created Shortcut because macOS Tahoe retired every other shell-accessible Focus signal — `notifyutil` keys are dead, and `~/Library/DoNotDisturb/DB/Assertions.json` is now Full-Disk-Access-gated):
 
 1. Open the **Shortcuts** app.
@@ -179,6 +193,8 @@ rm -f "$tmp"
 ```
 
 You should see the focus name (e.g. `Do Not Disturb`) when one is active, empty when none is.
+
+> The **first** time the shortcut runs, macOS may show a one-time permission prompt to let it read your Focus state — approve it. It won't ask again. (If it's ever declined or unanswered, the helper just fails open and plays the sound, so cmux is never silenced by a missing grant.)
 
 The standard cmux notification banner is unaffected — only this helper's random-sound playback is suppressed. macOS itself decides whether the OS-rendered banner appears based on cmux's per-app Focus filter settings.
 
