@@ -28,7 +28,11 @@ cat <<EOF > $HOME/.gitconfig
   enabled = 1
 
 [push]
-  default = upstream
+  # 'current' pushes to a remote branch with the SAME NAME as the local one,
+  # which prevents 'git push' from landing on master/main if a local branch
+  # happens to track origin/master (e.g. via autosetuprebase). Combined with
+  # autoSetupRemote, the first push of a new branch auto-creates the upstream.
+  default = current
   autoSetupRemote = true
 
 [fetch]
