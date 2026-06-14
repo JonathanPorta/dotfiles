@@ -33,7 +33,7 @@ curl -fsSL https://raw.githubusercontent.com/JonathanPorta/dotfiles/master/init.
 curl -fsSL https://raw.githubusercontent.com/JonathanPorta/dotfiles/master/init.sh | HEADLESS=true bash
 ```
 
-**4. Restart your shell, then finish setup:**
+**4. Restart your shell (so the freshly symlinked config and updated `$PATH` load), then finish setup:**
 ```bash
 zsh -lc "$HOME/devel/$USER/dotfiles/run.sh"
 ```
@@ -123,7 +123,7 @@ zsh -lc "$HOME/devel/$USER/dotfiles/run.sh"
 
 ## Helpers (`~/.helpers`)
 
-The `dotfiles/helpers/` directory is symlinked to `~/.helpers` and added to `$PATH`. This gives you executable helper scripts available as commands from any directory.
+The `dotfiles/helpers/` directory is symlinked to `~/.helpers` and added to `$PATH`, making these executable helper scripts available as commands from any directory.
 
 | Script | Description |
 |---|---|
