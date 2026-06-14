@@ -225,6 +225,7 @@ newrepo my-app ~/src    # non-interactive
 ## Prerequisites
 
 - `curl` (pre-installed on macOS and most Linux)
+- `git` (pre-installed on macOS via Xcode Command Line Tools; `dnf install git` on Fedora)
 - `sudo` access
 - **macOS:** [Homebrew](https://brew.sh/) and Xcode Command Line Tools (`xcode-select --install`)
 - **Linux:** `dnf` package manager (Fedora)
@@ -232,6 +233,7 @@ newrepo my-app ~/src    # non-interactive
 
 ## TODO
 - [ ] Add ~/.aws and similar credentials — tie in with the .secrets format.
+- [ ] Migrate the DND/Focus probe to the `notifyctl` binary once the sketch PRD lands.
 
 ## Third-Party Notices
 
