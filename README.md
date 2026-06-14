@@ -1,11 +1,11 @@
 # dotfiles
 
-My configuration files for some of my tools.
+My configuration files and bootstrap scripts for setting up a new macOS or Fedora machine.
 
 ## Supported Platforms
 
 - **macOS** (Apple Silicon and Intel)
-- **Fedora Linux**
+- **Fedora Linux** (and other recent `dnf`-based distributions)
 
 ## Quick Start
 
