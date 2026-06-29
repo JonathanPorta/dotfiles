@@ -29,8 +29,11 @@
   //   },
 
   // Disable cmux's built-in sound and instead invoke a helper script that picks
-  // a random sound from ~/.sounds/cmux/ on each notification. The helper lives
-  // at dotfiles/helpers/cmux-random-sound and is PATH-exposed via ~/.helpers/.
+  // a random sound from ~/.sounds/cmux/ on each notification. `cmux-random-sound`
+  // is a symlink to the shared `agent-random-sound` engine (which also backs
+  // `herdr-random-sound`); the invoked name selects cmux's sound dir / volume
+  // file / env-var prefix, so this command stays unchanged and back-compatible.
+  // The helper is PATH-exposed via ~/.helpers/.
   // Drop a .wav/.mp3/.aiff/.aif/.m4a into ~/.sounds/cmux/ — no reload needed
   // for new sound files (the helper scans the directory each time). Reload
   // cmux config (cmd+shift+,) only after editing this template itself.

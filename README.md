@@ -91,7 +91,7 @@ HEADLESS=true ./init.sh
 
 | | |
 |---|---|
-| **Purpose** | Clones this repo (via HTTPS), symlinks shell configs (`.zshrc`, `.zshenv`, `.zprofile`, `.gitignore_global`, `.chruby`, `.helpers`) into `$HOME`, directory-symlinks `dotfiles/cmux/` (the cmux notification-sound pool) into `~/.sounds/cmux/` and renders `~/.config/cmux/settings.json` from the JSONC template (which delegates per-notification sound playback to the `cmux-random-sound` helper), installs `jq` and `zsh` if missing, and syncs GitHub `authorized_keys`. |
+| **Purpose** | Clones this repo (via HTTPS), symlinks shell configs (`.zshrc`, `.zshenv`, `.zprofile`, `.gitignore_global`, `.chruby`, `.helpers`) into `$HOME`, directory-symlinks `dotfiles/cmux/` (the cmux notification-sound pool) into `~/.sounds/cmux/` and renders `~/.config/cmux/settings.json` from the JSONC template (which delegates per-notification sound playback to the `cmux-random-sound` helper, a symlink to the shared `agent-random-sound` engine), installs `jq` and `zsh` if missing, and syncs GitHub `authorized_keys`. |
 | **Idempotency** | **Mostly safe to re-run.** If the repo already exists it does a `git fetch` instead of cloning. Existing dotfiles in `$HOME` are renamed to `*.old<timestamp>` before re-linking, so nothing is silently lost. |
 | **Destructive?** | Moves existing `.zshrc`, `.zshenv`, `.zprofile`, `.gitignore_global`, `.chruby` to timestamped backups. Truncates `authorized_keys`. **Overwrites `~/.config/cmux/settings.json`** from the tracked template — edit `dotfiles/cmux-settings.json`, not the rendered file. |
 
@@ -130,7 +130,8 @@ The `dotfiles/helpers/` directory is symlinked to `~/.helpers` and added to `$PA
 | `newrepo` | Creates a new local+GitHub repo with ai-rules subtree pre-installed. Interactive prompts for name, location, and visibility. |
 | `generate_gitconfig.sh` | Generates `~/.gitconfig` from a template (sourced automatically by `.profile` on shell startup). |
 | `generate_cmux_settings.sh` | Renders `~/.config/cmux/settings.json` from `dotfiles/cmux-settings.json`, substituting `__HOME__` with `$HOME`. Invoked from `installation/symlink.sh`. **Note:** edits made via cmux's settings UI are overwritten on the next `init.sh` / `run.sh` run — edit the template, not the rendered file. |
-| `cmux-random-sound` | Picks a random audio file from `~/.sounds/cmux/` and plays it via `afplay` in the background. Invoked by cmux's `notifications.command` hook on every notification. Volume: `$CMUX_RANDOM_SOUND_VOLUME` env var > `~/.config/cmux/random-sound-volume` file > `0.4` default (loudness-normalized clips don't jumpscare). Set `$CMUX_RANDOM_SOUND_DEBUG=1` to print the picked file to stderr. Skips playback while any macOS Focus / Do Not Disturb mode is active (probed via a user-created Shortcut — see the "Do Not Disturb / Focus" section below); set `$CMUX_RANDOM_SOUND_IGNORE_DND=1` to override. Exits silently if the directory is missing/empty or the platform isn't darwin. |
+| `agent-random-sound` | Random-sound **engine**: picks a random audio file from a per-app sound pool and plays it in the background (`afplay` on macOS; `ffplay`/`paplay`/`mpv` on Linux). It's invoked through app-named symlinks — `cmux-random-sound` (cmux's `notifications.command` hook) and `herdr-random-sound` (see [Herdr support](#herdr-support)) — and the **invoked name** selects the sound dir (`~/.sounds/<app>/`, falling back to `~/.sounds/cmux/` for non-cmux apps), the volume file (`~/.config/<app>/random-sound-volume`), and the env-var prefix (`<APP>_RANDOM_SOUND_*`, e.g. `CMUX_RANDOM_SOUND_VOLUME`; a generic `AGENT_RANDOM_SOUND_*` is honored as a fallback). Volume precedence: env var > volume file > `0.4` default (loudness-normalized clips don't jumpscare). Set `<APP>_RANDOM_SOUND_DEBUG=1` to print the picked file to stderr. Skips playback while any macOS Focus / Do Not Disturb mode is active (probed via a shared user-created Shortcut — see the "Do Not Disturb / Focus" section below); set `<APP>_RANDOM_SOUND_IGNORE_DND=1` to override. Exits silently if the directory is missing/empty or no player is available. |
+| `cmux-random-sound`, `herdr-random-sound` | Symlinks to `agent-random-sound` (above). The name they're called by is what selects per-app behavior, so the cmux config keeps calling `cmux-random-sound` unchanged. |
 | `util.sh` | Shell utility functions like `externaldns` and `curlr` (sourced automatically by `.profile`). |
 
 ### Adding more cmux notification sounds
@@ -156,6 +157,33 @@ mkdir -p ~/.config/cmux && echo 0.6 > ~/.config/cmux/random-sound-volume
 ```
 
 Useful range `0.0`–`1.0`; values above `1.0` amplify but may clip. To verify which sound is being picked, set `CMUX_RANDOM_SOUND_DEBUG=1` and run the helper directly — the picked file path is printed to stderr.
+
+### Herdr support
+
+The same random-sound engine works with [Herdr](https://herdr.dev) — the terminal agent multiplexer — through the `herdr-random-sound` symlink. Two things differ from cmux:
+
+- **Herdr has no `notifications.command` hook.** cmux runs an arbitrary command per notification; Herdr instead plays *fixed* files via its `[ui.sound]` config (`done_path` / `request_path`), which can't randomize. To get randomized sounds you invoke `herdr-random-sound` from a hook that fires on the moments you'd want a ding — agent **done** and **needs-input / blocked**.
+- **Sound pool.** `herdr-random-sound` reads `~/.sounds/herdr/` and falls back to the shared `~/.sounds/cmux/` pool if you haven't created a herdr-specific one, so it works out of the box. Drop files into `~/.sounds/herdr/` to give Herdr its own set. Volume, DND, and env overrides all follow the `HERDR_RANDOM_SOUND_*` prefix (see the helpers table).
+
+**Wiring (best-effort — verify against your installed Herdr build):**
+
+1. **Silence Herdr's built-in sound** so you don't get a double ding. In Herdr's config (TOML):
+   ```toml
+   [ui.sound]
+   enabled = false
+   ```
+2. **Fire the helper on the notify-worthy events.** Herdr installs state-report hooks into your agent via `herdr integration`; for Claude Code those ride on its native `Stop` (done) and `Notification` (needs input) hooks. Add a hook that calls the helper — e.g. in Claude Code's `settings.json`:
+   ```json
+   {
+     "hooks": {
+       "Stop":         [{ "hooks": [{ "type": "command", "command": "$HOME/.helpers/herdr-random-sound" }] }],
+       "Notification": [{ "hooks": [{ "type": "command", "command": "$HOME/.helpers/herdr-random-sound" }] }]
+     }
+   }
+   ```
+   If you'd rather hang it off a Herdr-managed hook directly, keep that hook's existing socket `report_agent` call intact and add the helper alongside it — and note Herdr may overwrite shell-style hooks on a `herdr integration` reinstall, so a hook you own separately is the safer place.
+
+> This wiring is an initial pass. The exact hook event names / config path should be confirmed on a live Herdr install — the engine and symlink are solid; the glue is what we'll iterate on.
 
 ### Do Not Disturb / Focus
 
