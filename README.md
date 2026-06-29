@@ -131,7 +131,7 @@ The `dotfiles/helpers/` directory is symlinked to `~/.helpers` and added to `$PA
 | `generate_gitconfig.sh` | Generates `~/.gitconfig` from a template (sourced automatically by `.profile` on shell startup). |
 | `generate_cmux_settings.sh` | Renders `~/.config/cmux/settings.json` from `dotfiles/cmux-settings.json`, substituting `__HOME__` with `$HOME`. Invoked from `installation/symlink.sh`. **Note:** edits made via cmux's settings UI are overwritten on the next `init.sh` / `run.sh` run — edit the template, not the rendered file. |
 | `agent-random-sound` | Random-sound **engine**: picks a random audio file from a per-app sound pool and plays it in the background (`afplay` on macOS; `ffplay`/`paplay`/`mpv` on Linux). It's invoked through app-named symlinks — `cmux-random-sound` (cmux's `notifications.command` hook) and `herdr-random-sound` (see [Herdr support](#herdr-support)) — and the **invoked name** selects the sound dir (`~/.sounds/<app>/`, falling back to `~/.sounds/cmux/` for non-cmux apps), the volume file (`~/.config/<app>/random-sound-volume`), and the env-var prefix (`<APP>_RANDOM_SOUND_*`, e.g. `CMUX_RANDOM_SOUND_VOLUME`; a generic `AGENT_RANDOM_SOUND_*` is honored as a fallback). Volume precedence: env var > volume file > `0.4` default (loudness-normalized clips don't jumpscare). Set `<APP>_RANDOM_SOUND_DEBUG=1` to print the picked file to stderr. Skips playback while any macOS Focus / Do Not Disturb mode is active (probed via a shared user-created Shortcut — see the "Do Not Disturb / Focus" section below); set `<APP>_RANDOM_SOUND_IGNORE_DND=1` to override. Exits silently if the directory is missing/empty or no player is available. |
-| `cmux-random-sound`, `herdr-random-sound` | Symlinks to `agent-random-sound` (above). The name they're called by is what selects per-app behavior, so the cmux config keeps calling `cmux-random-sound` unchanged. |
+| `cmux-random-sound`, `herdr-random-sound`, `claude-random-sound`, `codex-random-sound`, `gemini-random-sound` | Symlinks to `agent-random-sound` (above). The name they're called by is what selects per-app behavior (sound dir, volume file, `<APP>_RANDOM_SOUND_*` env prefix), so the cmux config keeps calling `cmux-random-sound` unchanged. The `claude`/`codex`/`gemini` ones are for wiring sounds straight into those agent CLIs' own hooks — see [Agent CLI hooks](#agent-cli-hooks-claude-code-codex-gemini). |
 | `util.sh` | Shell utility functions like `externaldns` and `curlr` (sourced automatically by `.profile`). |
 
 ### Adding more cmux notification sounds
@@ -184,6 +184,72 @@ The same random-sound engine works with [Herdr](https://herdr.dev) — the termi
    If you'd rather hang it off a Herdr-managed hook directly, keep that hook's existing socket `report_agent` call intact and add the helper alongside it — and note Herdr may overwrite shell-style hooks on a `herdr integration` reinstall, so a hook you own separately is the safer place.
 
 > This wiring is an initial pass. The exact hook event names / config path should be confirmed on a live Herdr install — the engine and symlink are solid; the glue is what we'll iterate on.
+
+### Agent CLI hooks (Claude Code, Codex, Gemini)
+
+You don't need a terminal multiplexer in the loop at all — the major agent CLIs each have a native **lifecycle hooks** system that can run a shell command when the agent finishes a turn or needs your input. Point those hooks at the matching `*-random-sound` symlink and you get the same randomized, DND-aware, loudness-normalized sounds straight from the CLI.
+
+Each tool reads its own pool (`~/.sounds/claude/`, `~/.sounds/codex/`, `~/.sounds/gemini/`) and **falls back to the shared `~/.sounds/cmux/` pool** if you haven't made a tool-specific one, so all of these work immediately. Per-tool volume/DND/env follow the `CLAUDE_`/`CODEX_`/`GEMINI_` `_RANDOM_SOUND_*` prefixes (see the helpers table). In every snippet below, `$HOME` expands because the command runs through a shell.
+
+> **Latency note:** the macOS Focus/DND probe adds ~0.6–0.9s per invocation (the sound itself is backgrounded). For a hook the CLI waits on at the end of *every* turn, that's noticeable. If you don't need DND-silencing for a given tool, set its `<TOOL>_RANDOM_SOUND_IGNORE_DND=1` to skip the probe and return instantly.
+
+#### Claude Code — `~/.claude/settings.json`
+
+`Stop` fires when Claude finishes a turn; `Notification` fires when it needs input (`idle_prompt`) or permission (`permission_prompt`). `Stop` takes no `matcher`; use `""` on `Notification` to fire on all notification types.
+
+```json
+{
+  "hooks": {
+    "Stop": [
+      { "hooks": [{ "type": "command", "command": "$HOME/.helpers/claude-random-sound" }] }
+    ],
+    "Notification": [
+      { "matcher": "", "hooks": [{ "type": "command", "command": "$HOME/.helpers/claude-random-sound" }] }
+    ]
+  }
+}
+```
+
+#### Codex — `~/.codex/config.toml`
+
+`Stop` fires right before Codex ends its turn; `PermissionRequest` fires when it needs approval. (Hooks require a reasonably recent Codex — the system stabilized in 2026.)
+
+```toml
+[[hooks.Stop]]
+[[hooks.Stop.hooks]]
+type = "command"
+command = '"$HOME/.helpers/codex-random-sound"'
+
+[[hooks.PermissionRequest]]
+[[hooks.PermissionRequest.hooks]]
+type = "command"
+command = '"$HOME/.helpers/codex-random-sound"'
+```
+
+On an older Codex without hooks, the legacy top-level `notify` key covers turn-completion only (no permission event). It must appear **before** any `[table]` header in the file:
+
+```toml
+notify = ["/bin/bash", "-c", "exec \"$HOME/.helpers/codex-random-sound\""]
+```
+
+#### Gemini CLI — `~/.gemini/settings.json`
+
+`AfterAgent` fires when the agent loop ends (turn done); `Notification` fires on tool-permission prompts. **Gemini parses the hook's stdout as JSON**, so the command must print nothing on stdout — the `>/dev/null 2>&1; exit 0` guard below guarantees that (the helper is already stdout-silent, but the guard is belt-and-suspenders). Requires Gemini CLI v0.26+.
+
+```json
+{
+  "hooks": {
+    "AfterAgent": [
+      { "hooks": [{ "type": "command", "command": "\"$HOME/.helpers/gemini-random-sound\" >/dev/null 2>&1; exit 0" }] }
+    ],
+    "Notification": [
+      { "hooks": [{ "type": "command", "command": "\"$HOME/.helpers/gemini-random-sound\" >/dev/null 2>&1; exit 0" }] }
+    ]
+  }
+}
+```
+
+> Event names and config paths above were verified against each tool's docs (mid-2026), but versions move fast — confirm against your installed build. The engine and symlinks are tested; the per-CLI glue is the part to sanity-check live. To test any of them directly: `<TOOL>_RANDOM_SOUND_DEBUG=1 ~/.helpers/<tool>-random-sound` should print and play a pick.
 
 ### Do Not Disturb / Focus
 
