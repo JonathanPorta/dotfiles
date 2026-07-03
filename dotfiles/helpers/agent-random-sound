@@ -1,0 +1,185 @@
+#!/usr/bin/env bash
+# Picks a random audio file from a per-app sound directory and plays it in the
+# background. Originally written for cmux's notifications.command hook; now a
+# shared "engine" that also serves Herdr (and any other tool) via app-named
+# symlinks.
+#
+# Which app am I?
+#   The script keys its behavior off the name it was INVOKED as (argv[0]),
+#   resolved through symlinks like:
+#       cmux-random-sound   -> agent-random-sound   (app "cmux")
+#       herdr-random-sound  -> agent-random-sound   (app "herdr")
+#   Invoked directly as `agent-random-sound`, the app is "agent". The invoked
+#   name selects three things, all derived from the app token:
+#       sound dir   : $HOME/.sounds/<app>/        (e.g. ~/.sounds/cmux)
+#       volume file : $HOME/.config/<app>/random-sound-volume
+#       env prefix  : <APP>_RANDOM_SOUND_*        (e.g. CMUX_RANDOM_SOUND_VOLUME)
+#   This is what keeps cmux 100% backwards compatible: the rendered cmux
+#   settings still call `cmux-random-sound`, so app="cmux" and every cmux path /
+#   env var behaves exactly as before.
+#
+# Behavior:
+#   - Exits 0 silently if the resolved sound directory is missing or empty.
+#   - For a non-cmux app whose own dir doesn't exist yet, falls back to the
+#     shared ~/.sounds/cmux pool so e.g. Herdr works immediately without you
+#     having to duplicate sound files. Override with <APP>_RANDOM_SOUND_DIR.
+#   - macOS plays via afplay. Linux best-effort plays via ffplay/paplay/mpv
+#     (Herdr is cross-platform); exits 0 silently if none is available.
+#   - Exits 0 silently when any macOS Focus / Do Not Disturb mode is active
+#     (macOS only), so the helper honors the OS-level "don't make noise"
+#     signal. Detection uses the Shortcuts CLI because Apple has retired every
+#     other shell-accessible Focus signal by macOS Tahoe (26): notifyutil keys
+#     are dead, and ~/Library/DoNotDisturb/DB/Assertions.json is now TCC-gated
+#     (requires Full Disk Access — which can't be cleanly granted to a shell
+#     script). Setup: create a Shortcut named `cmux-focus-check` whose body is
+#     just the "Get Current Focus" action, so its output is the focus name when
+#     one is active and empty otherwise. The shortcut name is intentionally
+#     shared across apps (one Focus probe serves cmux, Herdr, etc.). See the
+#     README "Do Not Disturb / Focus" section for the full walkthrough. Set
+#     <APP>_RANDOM_SOUND_IGNORE_DND to bypass the check. If `shortcuts` is
+#     missing, the named shortcut doesn't exist, or the CLI errors, we fail
+#     open and play the sound — a broken probe never silences notifications.
+#   - Backgrounds the player so the caller's notification handling never blocks.
+#   - Volume precedence (highest first):
+#       1. <APP>_RANDOM_SOUND_VOLUME (env var)
+#       2. $HOME/.config/<app>/random-sound-volume (file contents, trimmed)
+#       3. 0.4 default (40% — loudness-normalized clips don't jumpscare)
+#     The file fallback exists because an app launched as a macOS GUI app does
+#     not inherit interactive shell startup files, so an env var set in .zshrc
+#     may not reach this script. Useful range 0.0-1.0; values >1.0 amplify but
+#     may clip. (Linux volume scaling is approximate / player-dependent.)
+#   - <APP>_RANDOM_SOUND_DEBUG (any non-empty value): echoes the picked file
+#     path to stderr before playing, for "is rotation working?" checks.
+#
+# For every <APP>_RANDOM_SOUND_* env var, a generic AGENT_RANDOM_SOUND_* of the
+# same suffix is honored as a fallback, so one env var can drive all apps.
+
+set -euo pipefail
+
+# --- Resolve which app we're acting as, from the invoked name ----------------
+self="${0##*/}"
+app="${self%-random-sound}"
+# No "-random-sound" suffix (name unchanged) or empty → generic "agent".
+[ "$app" = "$self" ] && app="agent"
+[ -n "$app" ] || app="agent"
+# Env-var prefix: uppercase the app token and turn '-' into '_'.
+prefix="$(printf '%s' "$app" | tr '[:lower:]-' '[:upper:]_')"
+
+# Read an env var by suffix with precedence: <APP>_RANDOM_SOUND_<suffix>, then
+# the generic AGENT_RANDOM_SOUND_<suffix>. Empty if neither is set.
+getenv() {
+  local appvar="${prefix}_RANDOM_SOUND_$1"
+  local genvar="AGENT_RANDOM_SOUND_$1"
+  if [ -n "${!appvar:-}" ]; then
+    printf '%s' "${!appvar}"
+  elif [ -n "${!genvar:-}" ]; then
+    printf '%s' "${!genvar}"
+  fi
+}
+
+debug="$(getenv DEBUG)"
+
+# --- Resolve the sound directory ---------------------------------------------
+sound_dir="$(getenv DIR)"
+[ -n "$sound_dir" ] || sound_dir="$HOME/.sounds/$app"
+# Non-cmux apps fall back to the shared cmux pool when they have no dir of their
+# own yet — lets Herdr (etc.) reuse the existing sounds with zero extra setup.
+if [ ! -d "$sound_dir" ] && [ "$app" != "cmux" ] && [ -d "$HOME/.sounds/cmux" ]; then
+  [ -n "$debug" ] && printf '%s: no %s, falling back to ~/.sounds/cmux\n' "$self" "$sound_dir" >&2
+  sound_dir="$HOME/.sounds/cmux"
+fi
+[ -d "$sound_dir" ] || exit 0
+
+# --- Pick an audio player for this platform ----------------------------------
+os="$(uname -s)"
+player=""
+if [ "$os" = "Darwin" ]; then
+  command -v afplay >/dev/null 2>&1 && player="afplay"
+else
+  # Linux best-effort, in order of preference. ffplay honors a volume flag.
+  for cand in ffplay paplay mpv aplay; do
+    if command -v "$cand" >/dev/null 2>&1; then player="$cand"; break; fi
+  done
+fi
+[ -n "$player" ] || exit 0
+
+# --- Skip playback while a macOS Focus / DND mode is active (macOS only) ------
+# `shortcuts run` writes the shortcut's output only when `--output-path` is
+# given, so we pipe through a tmpfile. The shortcut returns the focus name (e.g.
+# "Do Not Disturb", "Work") when one is engaged, or empty when none is. Fail
+# open on any error path. The `|| true` after `shortcuts run` is required under
+# `set -e` (a missing shortcut or missing CLI would otherwise abort).
+ignore_dnd="$(getenv IGNORE_DND)"
+if [ "$os" = "Darwin" ] && [ -z "$ignore_dnd" ] && command -v shortcuts >/dev/null 2>&1; then
+  focus_out="$(mktemp -t agent-focus.XXXXXX 2>/dev/null)" || focus_out=""
+  if [ -n "$focus_out" ]; then
+    shortcuts run cmux-focus-check --output-path "$focus_out" --output-type public.plain-text >/dev/null 2>&1 || true
+    # `None` / `No Focus` are defensive — Shortcuts may emit those instead of
+    # an empty string depending on how the user wired the shortcut.
+    focus_name="$(tr -d '\r\n' < "$focus_out" 2>/dev/null | awk '{$1=$1; print}')"
+    rm -f "$focus_out"
+    case "$focus_name" in
+      ''|'None'|'No Focus') ;;
+      *)
+        [ -n "$debug" ] && printf '%s: focus active (%s), skipping playback\n' "$self" "$focus_name" >&2
+        exit 0
+        ;;
+    esac
+  fi
+fi
+
+# --- Pick a random sound ------------------------------------------------------
+# -L so a symlinked sound_dir (the install-pipeline default) is followed.
+# `2>/dev/null || true` swallows permission errors on stray subdirectories;
+# pipefail would otherwise propagate find's non-zero exit and kill the helper.
+# Seed awk with $RANDOM + PID so multiple notifications fired within the same
+# second don't all collide on the same pick (default srand() = epoch seconds).
+sound="$(
+  { find -L "$sound_dir" -type f \
+      \( -iname '*.aiff' -o -iname '*.aif' -o -iname '*.wav' \
+         -o -iname '*.mp3' -o -iname '*.m4a' \) 2>/dev/null || true; } |
+  awk -v seed="${RANDOM}${$}" \
+    'BEGIN{srand(seed)} {a[NR]=$0} END{if (NR) print a[int(rand()*NR)+1]}'
+)"
+
+[ -n "$sound" ] || exit 0
+
+# --- Resolve volume: env var > config file > default -------------------------
+volume="$(getenv VOLUME)"
+if [ -z "$volume" ] && [ -r "$HOME/.config/$app/random-sound-volume" ]; then
+  # tr to strip whitespace/newlines; ignore the file silently if it's empty.
+  volume="$(tr -d '[:space:]' < "$HOME/.config/$app/random-sound-volume")"
+fi
+# Sanity: reject anything that isn't a plausible float (digits + at most one dot,
+# and at least one digit). Keeps typos like `quiet`, `0.4 # comment`, `1.2.3`,
+# or a bare `.` from silently breaking the player.
+case "$volume" in
+  ''|*[!0-9.]*|*.*.*) volume="0.4" ;;
+esac
+case "$volume" in
+  *[0-9]*) ;;
+  *) volume="0.4" ;;
+esac
+
+[ -n "$debug" ] && printf '%s: %s (app=%s, vol=%s, player=%s)\n' "$self" "$sound" "$app" "$volume" "$player" >&2
+
+# --- Play (backgrounded) -----------------------------------------------------
+case "$player" in
+  afplay)
+    afplay -v "$volume" "$sound" >/dev/null 2>&1 &
+    ;;
+  ffplay)
+    # ffplay volume is an integer 0-100+ ; scale our 0.0-1.0(+) float.
+    vol_pct="$(awk -v v="$volume" 'BEGIN{p=v*100; if(p<0)p=0; printf "%d", p}')"
+    ffplay -nodisp -autoexit -loglevel quiet -volume "$vol_pct" "$sound" >/dev/null 2>&1 &
+    ;;
+  paplay|aplay)
+    # No portable per-invocation volume flag; play at the stream's own level.
+    "$player" "$sound" >/dev/null 2>&1 &
+    ;;
+  mpv)
+    # mpv --volume is a percentage (100 = original); scale our float.
+    vol_pct="$(awk -v v="$volume" 'BEGIN{p=v*100; if(p<0)p=0; printf "%d", p}')"
+    mpv --no-video --really-quiet --volume="$vol_pct" "$sound" >/dev/null 2>&1 &
+    ;;
+esac
