@@ -226,6 +226,8 @@ type = "command"
 command = '"$HOME/.helpers/codex-random-sound"'
 ```
 
+After adding these, run `/hooks` inside Codex and **trust** the new `codex-random-sound` hooks — Codex will not run non-managed command hooks until you do, so the config above stays silent until it's trusted (and changing a hook definition later requires re-trusting it).
+
 On an older Codex without hooks, the legacy top-level `notify` key covers turn-completion only (no permission event). It must appear **before** any `[table]` header in the file:
 
 ```toml
