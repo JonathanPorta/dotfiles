@@ -146,6 +146,9 @@ dotfiles/agent-config.d/
   [`prrq#45`](https://github.com/JonathanPorta/prrq/pull/45) and consumes
   `prrq summary --json`; when `prrq` is missing or predates that command, the
   optional queue segment is omitted without affecting the rest of the line.
+  Context-pressure breadcrumbs use the stable
+  `~/.local/state/claude-statusline/claude-ctx-<project-hash>.breadcrumb` reader
+  contract inside a mode-`0700` directory; each breadcrumb is mode `0600`.
 - Codex TOML fragments currently support the deliberately narrow
   `tui.status_line` setting. The installer updates that key inside the existing
   `[tui]` table while preserving the rest of `~/.codex/config.toml` byte for

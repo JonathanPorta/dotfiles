@@ -12,6 +12,14 @@ fail() {
   exit 1
 }
 
+mode_of() {
+  if stat -f '%Lp' "$1" >/dev/null 2>&1; then
+    stat -f '%Lp' "$1"
+  else
+    stat -c '%a' "$1"
+  fi
+}
+
 test_home="$test_root/home"
 mkdir -p "$test_home/.claude" "$test_home/.codex"
 
@@ -272,7 +280,20 @@ jq -n '{
 }' >"$test_root/claude-status-payload.json"
 
 status_base="Opus 4 | e:high | ctx:23%⚠ | 5h:1% | 7d:95% | PR#23 … | \$2.250 | Σ\$3.50 | Δ+12/-3 | example-org/example-repo"
-rendered=$(PATH="$test_root/status-bin:/usr/bin:/bin:/usr/sbin:/sbin" \
+status_home="$test_root/status-home"
+breadcrumb_dir="$status_home/.local/state/claude-statusline"
+breadcrumb_key=$(printf '%s' '/tmp/example-repo' | \
+  { md5 -q 2>/dev/null || md5sum | cut -d' ' -f1; } | cut -c1-12)
+breadcrumb="$breadcrumb_dir/claude-ctx-$breadcrumb_key.breadcrumb"
+breadcrumb_victim="$test_root/breadcrumb-victim"
+mkdir -p "$breadcrumb_dir"
+chmod 755 "$breadcrumb_dir"
+printf '%s\n' 'must-not-be-overwritten' >"$breadcrumb_victim"
+cp "$breadcrumb_victim" "$test_root/breadcrumb-victim.before"
+ln -s "$breadcrumb_victim" "$breadcrumb"
+
+rendered=$(HOME="$status_home" \
+  PATH="$test_root/status-bin:/usr/bin:/bin:/usr/sbin:/sbin" \
   PRRQ_HOME="$test_root/prrq" \
   PRRQ_CALL_LOG="$test_root/prrq-call.log" \
   PRRQ_SUMMARY_FIXTURE="$test_root/prrq-summary.json" \
@@ -283,16 +304,36 @@ expected="$status_base | 🟢 1  🟡 1  🔴 1  ⚪ 1  🟠 1  ⚠️ 1  🔒 1
   fail "unexpected Claude status line: $rendered"
 [ "$(cat "$test_root/prrq-call.log")" = "summary --json" ] || \
   fail "renderer invoked the wrong prrq command"
+cmp -s "$test_root/breadcrumb-victim.before" "$breadcrumb_victim" || \
+  fail "breadcrumb write followed a planted symlink"
+[ -f "$breadcrumb" ] && [ ! -L "$breadcrumb" ] || \
+  fail "breadcrumb was not replaced with a regular file"
+[ "$(mode_of "$breadcrumb_dir")" = 700 ] || \
+  fail "breadcrumb directory is not private"
+[ "$(mode_of "$breadcrumb")" = 600 ] || \
+  fail "breadcrumb file is not private"
+grep -Eq '^23 unknown [0-9]+$' "$breadcrumb" || \
+  fail "breadcrumb content contract changed"
+
+jq '.context_window.used_percentage = 42 | .session_id = "fixture-session"' \
+  "$test_root/claude-status-payload.json" >"$test_root/claude-status-updated.json"
+HOME="$status_home" PATH="$test_root/base-bin:/usr/bin:/bin:/usr/sbin:/sbin" \
+  "$repo_root/dotfiles/agent-config.d/claude/statusline-command.sh" \
+  <"$test_root/claude-status-updated.json" >/dev/null
+grep -Eq '^42 fixture-session [0-9]+$' "$breadcrumb" || \
+  fail "ordinary render did not update the private breadcrumb"
 
 # Missing, older, failing, or malformed prrq installations are optional and
 # must not break the rest of the status line.
-without_prrq=$(PATH="$test_root/base-bin:/usr/bin:/bin:/usr/sbin:/sbin" \
+without_prrq=$(HOME="$status_home" \
+  PATH="$test_root/base-bin:/usr/bin:/bin:/usr/sbin:/sbin" \
   "$repo_root/dotfiles/agent-config.d/claude/statusline-command.sh" \
   <"$test_root/claude-status-payload.json")
 [ "$without_prrq" = "$status_base" ] || \
   fail "missing prrq changed the Claude status line"
 
-failing_prrq=$(PATH="$test_root/status-bin:/usr/bin:/bin:/usr/sbin:/sbin" \
+failing_prrq=$(HOME="$status_home" \
+  PATH="$test_root/status-bin:/usr/bin:/bin:/usr/sbin:/sbin" \
   PRRQ_CALL_LOG="$test_root/prrq-call.log" \
   PRRQ_SUMMARY_FIXTURE="$test_root/prrq-summary.json" \
   PRRQ_SUMMARY_FAIL=1 \
@@ -301,7 +342,8 @@ failing_prrq=$(PATH="$test_root/status-bin:/usr/bin:/bin:/usr/sbin:/sbin" \
 [ "$failing_prrq" = "$status_base" ] || \
   fail "failing prrq changed the Claude status line"
 
-invalid_prrq=$(PATH="$test_root/status-bin:/usr/bin:/bin:/usr/sbin:/sbin" \
+invalid_prrq=$(HOME="$status_home" \
+  PATH="$test_root/status-bin:/usr/bin:/bin:/usr/sbin:/sbin" \
   PRRQ_CALL_LOG="$test_root/prrq-call.log" \
   PRRQ_SUMMARY_FIXTURE="$test_root/invalid-prrq-summary" \
   "$repo_root/dotfiles/agent-config.d/claude/statusline-command.sh" \

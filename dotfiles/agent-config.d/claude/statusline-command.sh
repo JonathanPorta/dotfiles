@@ -37,14 +37,45 @@ IFS=$'\037' read -r \
   ] | map(tostring) | join("\u001f")')"
 
 # Leave a per-project context-pressure breadcrumb for prrq and other local
-# helpers. Readers treat a missing or stale file as unknown.
+# helpers. Readers treat a missing or stale file as unknown. The state directory
+# is private to the current user, and the replace path never writes through a
+# pre-existing symlink.
 sid=$(printf '%s' "$input" | jq -r '.session_id // ""')
 pdir=$(printf '%s' "$input" | jq -r '.workspace.project_dir // .workspace.current_dir // .cwd // ""')
-if [ -n "$used_pct" ] && [ -n "$pdir" ]; then
+if [ -n "$used_pct" ] && [ -n "$pdir" ] && [ -n "${HOME:-}" ]; then
   proot=$(git -C "$pdir" rev-parse --show-toplevel 2>/dev/null || printf '%s' "$pdir")
   pkey=$(printf '%s' "$proot" | { md5 -q 2>/dev/null || md5sum | cut -d' ' -f1; } | cut -c1-12)
-  printf '%.0f %s %s\n' "$used_pct" "${sid:-unknown}" "$(date +%s)" \
-    >"${TMPDIR:-/tmp}/claude-ctx-$pkey.breadcrumb" 2>/dev/null
+  (
+    umask 077
+    breadcrumb_dir="$HOME/.local/state/claude-statusline"
+    mkdir -p "$breadcrumb_dir" || exit 0
+    [ -d "$breadcrumb_dir" ] && [ ! -L "$breadcrumb_dir" ] || exit 0
+
+    if stat -f '%u' "$breadcrumb_dir" >/dev/null 2>&1; then
+      breadcrumb_uid=$(stat -f '%u' "$breadcrumb_dir" 2>/dev/null)
+    else
+      breadcrumb_uid=$(stat -c '%u' "$breadcrumb_dir" 2>/dev/null) || exit 0
+    fi
+    [ "$breadcrumb_uid" = "$(id -u)" ] || exit 0
+    chmod 700 "$breadcrumb_dir" || exit 0
+
+    breadcrumb="$breadcrumb_dir/claude-ctx-$pkey.breadcrumb"
+    breadcrumb_tmp=$(mktemp "$breadcrumb_dir/.claude-ctx-$pkey.XXXXXX") || exit 0
+    trap 'rm -f "$breadcrumb_tmp"' EXIT
+    printf '%.0f %s %s\n' "$used_pct" "${sid:-unknown}" "$(date +%s)" \
+      >"$breadcrumb_tmp" || exit 0
+    chmod 600 "$breadcrumb_tmp" || exit 0
+
+    # The private directory prevents a post-check race by another user. Remove
+    # a pre-existing link itself; never open its destination.
+    if [ -L "$breadcrumb" ]; then
+      rm -f "$breadcrumb" || exit 0
+    elif [ -e "$breadcrumb" ] && [ ! -f "$breadcrumb" ]; then
+      exit 0
+    fi
+    mv -f "$breadcrumb_tmp" "$breadcrumb" || exit 0
+    trap - EXIT
+  ) 2>/dev/null
 fi
 
 # Compact reset suffix: middle-dot plus days, hours, or minutes.
