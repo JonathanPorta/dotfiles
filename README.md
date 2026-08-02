@@ -155,6 +155,32 @@ tool access:
   run tests independently but cannot modify code — enforcing separation between
   implementation and review.
 
+## Concept Boundaries
+
+To keep the layers crisp as this repo grows, each top-level directory has a
+single job. Future work should respect the boundary rather than turning any
+one of them into a junk drawer.
+
+- **`rules/`** — process law. Always-on instructions every platform stub
+  loads via `AGENTS.md`. Governs how every PRD, task, and implementation
+  happens.
+- **`agents/`** — role definitions. Reference shapes for runners that need
+  a per-role prompt (Copilot custom agents, etc.). Not auto-invoked by
+  this repo; consumers adapt them to their runner.
+- **`skills/`** — triggerable workflow packages. Native-skills platforms
+  (Claude Code, Windsurf, Copilot) auto-discover these by their
+  `description` field; reference-only platforms (Cursor, Amp) point at
+  `.ai-rules/skills/` from their stub. Skills wrap rules with a trigger
+  shape and hard gates; they do not duplicate rule content.
+- **`hooks/`** *(reserved, not used yet)* — event-triggered enforcement
+  that runs in the harness rather than the model.
+- **`mcp/`** *(reserved, not used yet)* — external tool/integration
+  surfaces exposed via Model Context Protocol.
+
+Decision rule: if it is always-on, it is a rule. If it is a role with
+scoped tools, it is an agent. If it is a request-triggered workflow that
+preserves human gates, it is a skill.
+
 ## Structure
 
 ```text
@@ -180,10 +206,10 @@ tool access:
     06-session-state.md            # Persist context across sessions
     07-command-surface.md          # Required command and tool invocation boundaries
     08-tdd-enforcement.md          # (Optional) Red-then-green TDD evidence
-    09-git-and-publication-boundaries.md  # AI prepares; human ships
+    09-git-and-publication-boundaries.md  # Explicit human authority controls publication
     10-branch-pr-commit-conventions.md    # (Optional) git naming conventions
     11-styleguide-overlays.md             # (Optional) private writing-style overlays
-    12-human-copyable-outputs.md          # (Optional, enabled by default) paste-ready /tmp/ai-* files
+    12-human-copyable-outputs.md          # (Optional, enabled by default) draft-only /tmp/ai-* outputs; authorized publication follows Rule 09
     13-phase-gate-audits.md               # Audit before phase transitions and PR descriptions
     design/
       30-design-principles.md      # Design principles for coherent user-facing work
@@ -200,6 +226,10 @@ tool access:
     validator.md                   # Validation plan and test-first agent
     implementer.md                 # Validation-first task implementation agent
     reviewer.md                    # Feature verification and AC review agent
+  skills/
+    prd-authoring/                 # Triggerable PRD-authoring workflow
+      SKILL.md                     # Skill manifest with frontmatter
+      references/                  # Rubrics + worked examples (progressive disclosure)
   scripts/
     tdd-check.sh                   # (Optional) Git timestamp TDD verifier
   templates/
@@ -316,7 +346,7 @@ forks can override.
 | [TDD Enforcement](rules/08-tdd-enforcement.md) | Requires red-then-green test evidence | Your team practices TDD and has test infrastructure |
 | [Branch, PR, and Commit Conventions](rules/10-branch-pr-commit-conventions.md) | Defines `{initials}/{type}/slug` branches, `type: Title Cased` PR titles, squash-merge default | You want consistent git naming across repos |
 | [Styleguide Overlays](rules/11-styleguide-overlays.md) | Loads optional private writing-style guidance from `.ai-local/` | You have a private voice or work styleguide and want the agent to apply it to prose |
-| [Human-Copyable Outputs](rules/12-human-copyable-outputs.md) | Writes PR descriptions, Slack posts, etc. to `/tmp/ai-*` files with a clipboard command instead of auto-publishing | You want a tangible draft to review before it lands in GitHub, Slack, or email (enabled by default) |
+| [Human-Copyable Outputs](rules/12-human-copyable-outputs.md) | Writes draft-only PR descriptions, Slack posts, etc. to `/tmp/ai-*` files with a clipboard command; explicitly authorized publication follows Rule 09 | You want a tangible draft to review before it lands in GitHub, Slack, or email (enabled by default) |
 
 Optional rules also come with supporting tooling in `scripts/`:
 - `tdd-check.sh` — compares git timestamps to verify test-before-implementation ordering
@@ -368,10 +398,16 @@ your fork's `AGENTS.md`.
 
 ## Versioning
 
-Releases are cut automatically on merge to `main`:
-- `BREAKING` or `major:` in commit message → major bump
-- `feat:` or `minor:` → minor bump
-- Everything else → patch bump
+Releases are cut automatically on merge to `main`. The version bump is chosen
+from the labels on the PRs merged since the last release tag (highest wins:
+`major` > `minor` > `patch`):
+- `major` (or `version: major`) → major bump
+- `minor` (or `version: minor`) → minor bump
+- `patch` (or `version: patch`) → patch bump
+
+If a PR merges without a version label, the release falls back to scanning
+commit messages: `BREAKING` or `major:` → major, `feat:` or `minor:` → minor,
+everything else → patch.
 
 The `.version` file tracks the installed version and origin, used by the
 installer to detect updates.
