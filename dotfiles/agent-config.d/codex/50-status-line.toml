@@ -1,0 +1,15 @@
+# Codex has a native status line. These identifiers are rendered in order.
+# Unlike Claude Code's command status line, Codex does not currently accept
+# arbitrary commands here, so cost estimates and the prrq rollup are omitted.
+[tui]
+status_line = [
+  "model",
+  "reasoning",
+  "fast-mode",
+  "context-used",
+  "five-hour-limit",
+  "weekly-limit",
+  "pull-request-number",
+  "branch-changes",
+  "project-name",
+]

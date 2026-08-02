@@ -136,6 +136,10 @@ if ! command -v jq >/dev/null 2>&1; then
     fi
 fi
 
+# This optional step selects Python 3.11+ when available and otherwise defers
+# without stopping the rest of the bootstrap.
+"$DOTFILES_CHECKOUT/installation/agent-config.sh"
+
 echo "Ensure authorized keys are synced to local authorized_keys..."
 mkdir -p $SSH_DIR
 # we want to be able to run this and update the authorized keys with whatever we have on GH
