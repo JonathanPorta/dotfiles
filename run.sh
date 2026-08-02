@@ -11,7 +11,7 @@ echo_green "Installing applications..."
 echo_cyan "About to run '$DOTFILES_CHECKOUT/installation/all.sh'."
 $DOTFILES_CHECKOUT/installation/all.sh
 
-echo_cyan "Configuring optional Claude and Codex status lines..."
+echo_cyan "Configuring optional Claude and Codex agent settings..."
 $DOTFILES_CHECKOUT/installation/agent-config.sh
 
 echo "*******************************************"

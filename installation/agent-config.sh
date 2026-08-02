@@ -31,7 +31,7 @@ for candidate in "${python_candidates[@]}"; do
 done
 
 if [ -z "$python_bin" ]; then
-  echo "Skipping optional Claude/Codex status-line config: Python 3.11+ with tomllib is unavailable." >&2
+  echo "Skipping optional Claude/Codex agent config: Python 3.11+ with tomllib is unavailable." >&2
   echo "Re-run installation/agent-config.sh after installing a compatible Python." >&2
   exit 0
 fi
