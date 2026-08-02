@@ -223,19 +223,30 @@ grep -F 'different-existing-backup' \
 [ ! -e "$renderer_conflict_home/.codex/config.toml.pre-agent-config" ] || \
   fail "renderer conflict created a Codex backup before failing"
 
-# Render a representative Claude payload, including the prrq queue summary.
-mkdir -p "$test_root/prrq"
+# Render a representative Claude payload. The prrq fixture implements the
+# public summary contract from prrq#45; a poison queue file proves
+# the renderer never reaches into prrq's storage directly.
+mkdir -p "$test_root/prrq" "$test_root/status-bin" "$test_root/base-bin"
+ln -s "$(command -v jq)" "$test_root/status-bin/jq"
+ln -s "$(command -v jq)" "$test_root/base-bin/jq"
+cat >"$test_root/status-bin/prrq" <<'SH'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >"${PRRQ_CALL_LOG:?}"
+[ "$#" -eq 2 ] && [ "$1" = summary ] && [ "$2" = --json ] || exit 64
+[ -z "${PRRQ_SUMMARY_FAIL:-}" ] || exit 2
+cat "${PRRQ_SUMMARY_FIXTURE:?}"
+SH
+chmod +x "$test_root/status-bin/prrq"
+
 cat >"$test_root/prrq/queue.json" <<'JSON'
-{
-  "items": [
-    {"status": "approved", "mergeable": "MERGEABLE", "ci_state": "SUCCESS"},
-    {"status": "changed"},
-    {"status": "changes_requested"},
-    {"status": "needs_review"}
-  ]
-}
+{"items":[{"status":"needs_review"},{"status":"needs_review"}]}
 JSON
-rendered=$(jq -n '{
+cat >"$test_root/prrq-summary.json" <<'JSON'
+{"schema_version":1,"open":7,"counts":{"approved":1,"changed":1,"changes_requested":1,"needs_review":1,"error":1,"gated":1,"claimed":1,"blocked":1}}
+JSON
+printf '%s\n' 'not-json' >"$test_root/invalid-prrq-summary"
+
+jq -n '{
   model: {display_name: "Opus 4", id: "claude-opus-4"},
   context_window: {
     used_percentage: 23,
@@ -258,10 +269,44 @@ rendered=$(jq -n '{
     total_lines_added: 12,
     total_lines_removed: 3
   }
-}' | PRRQ_HOME="$test_root/prrq" \
-  "$repo_root/dotfiles/agent-config.d/claude/statusline-command.sh")
-expected="Opus 4 | e:high | ctx:23%⚠ | 5h:1% | 7d:95% | PR#23 … | \$2.250 | Σ\$3.50 | Δ+12/-3 | example-org/example-repo | 🟢 1  🟡 1  🔴 1  ⚪ 1"
+}' >"$test_root/claude-status-payload.json"
+
+status_base="Opus 4 | e:high | ctx:23%⚠ | 5h:1% | 7d:95% | PR#23 … | \$2.250 | Σ\$3.50 | Δ+12/-3 | example-org/example-repo"
+rendered=$(PATH="$test_root/status-bin:/usr/bin:/bin:/usr/sbin:/sbin" \
+  PRRQ_HOME="$test_root/prrq" \
+  PRRQ_CALL_LOG="$test_root/prrq-call.log" \
+  PRRQ_SUMMARY_FIXTURE="$test_root/prrq-summary.json" \
+  "$repo_root/dotfiles/agent-config.d/claude/statusline-command.sh" \
+  <"$test_root/claude-status-payload.json")
+expected="$status_base | 🟢 1  🟡 1  🔴 1  ⚪ 1  🟠 1  ⚠️ 1  🔒 1  🚫 1"
 [ "$rendered" = "$expected" ] || \
   fail "unexpected Claude status line: $rendered"
+[ "$(cat "$test_root/prrq-call.log")" = "summary --json" ] || \
+  fail "renderer invoked the wrong prrq command"
+
+# Missing, older, failing, or malformed prrq installations are optional and
+# must not break the rest of the status line.
+without_prrq=$(PATH="$test_root/base-bin:/usr/bin:/bin:/usr/sbin:/sbin" \
+  "$repo_root/dotfiles/agent-config.d/claude/statusline-command.sh" \
+  <"$test_root/claude-status-payload.json")
+[ "$without_prrq" = "$status_base" ] || \
+  fail "missing prrq changed the Claude status line"
+
+failing_prrq=$(PATH="$test_root/status-bin:/usr/bin:/bin:/usr/sbin:/sbin" \
+  PRRQ_CALL_LOG="$test_root/prrq-call.log" \
+  PRRQ_SUMMARY_FIXTURE="$test_root/prrq-summary.json" \
+  PRRQ_SUMMARY_FAIL=1 \
+  "$repo_root/dotfiles/agent-config.d/claude/statusline-command.sh" \
+  <"$test_root/claude-status-payload.json")
+[ "$failing_prrq" = "$status_base" ] || \
+  fail "failing prrq changed the Claude status line"
+
+invalid_prrq=$(PATH="$test_root/status-bin:/usr/bin:/bin:/usr/sbin:/sbin" \
+  PRRQ_CALL_LOG="$test_root/prrq-call.log" \
+  PRRQ_SUMMARY_FIXTURE="$test_root/invalid-prrq-summary" \
+  "$repo_root/dotfiles/agent-config.d/claude/statusline-command.sh" \
+  <"$test_root/claude-status-payload.json")
+[ "$invalid_prrq" = "$status_base" ] || \
+  fail "invalid prrq JSON changed the Claude status line"
 
 echo "PASS: agent config fragments merge safely and idempotently"

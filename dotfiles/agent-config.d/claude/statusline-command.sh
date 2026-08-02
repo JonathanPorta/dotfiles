@@ -117,38 +117,32 @@ else
   parts+=("$(basename "$cwd")")
 fi
 
-# Read the queue directly. This is deliberately lock-free and read-only: a
-# status-line render must never contend with prrq's queue writer.
-prrq_home="${PRRQ_HOME:-}"
-if [ -z "$prrq_home" ]; then
-  prrq_config="${PRRQ_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}/prrq/config}"
-  [ -f "$prrq_config" ] && prrq_home=$(grep -E '^[[:space:]]*PRRQ_HOME=' "$prrq_config" 2>/dev/null | tail -1 | sed 's/^[^=]*=//')
-fi
-prrq_home="${prrq_home:-$HOME/.prrq}"
-case "$prrq_home" in
-  \~/*) prrq_home="$HOME/${prrq_home#\~/}" ;;
-esac
-
-queue="$prrq_home/queue.json"
-if [ -f "$queue" ]; then
-  rollup=$(jq -r '
-    [.items[] | select(.status != "merged" and .status != "closed")] as $open
-    | ($open | map(select(.status == "approved" or .status == "agent_approved"
-                         or .status == "human_ready" or .status == "reviewed"))) as $green
-    | ($green | map(select(.mergeable == "CONFLICTING"
-                           or .ci_state == "FAILURE" or .ci_state == "ERROR")) | length) as $gated
-    | [ (($green | length) - $gated),
-        ($open | map(select(.status == "changed")) | length),
-        ($open | map(select(.status == "changes_requested")) | length),
-        ($open | map(select(.status == "needs_review")) | length),
-        ($open | map(select(.status == "error")) | length),
-        $gated ] | @tsv' "$queue" 2>/dev/null)
+# Ask prrq to interpret its own state through the JSON summary contract added in
+# prrq#45. Missing or older installations simply omit this
+# optional segment; reaching into queue.json would couple this renderer to
+# prrq's private storage schema all over again.
+if command -v prrq >/dev/null 2>&1; then
+  summary=$(prrq summary --json 2>/dev/null) || summary=""
+  rollup=""
+  if [ -n "$summary" ]; then
+    rollup=$(printf '%s' "$summary" | jq -er '
+      select(.schema_version == 1)
+      | [ .counts.approved, .counts.changed, .counts.changes_requested,
+          .counts.needs_review, .counts.error, .counts.gated,
+          .counts.claimed, .counts.blocked ]
+      | select(all(.[]; type == "number" and . >= 0 and floor == .))
+      | @tsv' 2>/dev/null) || rollup=""
+  fi
   if [ -n "$rollup" ]; then
-    IFS=$'\t' read -r queue_green queue_yellow queue_red queue_white queue_error queue_gated <<<"$rollup"
-    if [ $(( queue_green + queue_yellow + queue_red + queue_white + queue_error + queue_gated )) -gt 0 ]; then
+    IFS=$'\t' read -r \
+      queue_green queue_yellow queue_red queue_white queue_error queue_gated \
+      queue_claimed queue_blocked <<<"$rollup"
+    if [ $(( queue_green + queue_yellow + queue_red + queue_white + queue_error + queue_gated + queue_claimed + queue_blocked )) -gt 0 ]; then
       queue_segment="🟢 $queue_green  🟡 $queue_yellow  🔴 $queue_red  ⚪ $queue_white"
       [ "$queue_error" -gt 0 ] && queue_segment="$queue_segment  🟠 $queue_error"
       [ "$queue_gated" -gt 0 ] && queue_segment="$queue_segment  ⚠️ $queue_gated"
+      [ "$queue_claimed" -gt 0 ] && queue_segment="$queue_segment  🔒 $queue_claimed"
+      [ "$queue_blocked" -gt 0 ] && queue_segment="$queue_segment  🚫 $queue_blocked"
       parts+=("$queue_segment")
     fi
   fi

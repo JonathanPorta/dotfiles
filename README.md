@@ -142,7 +142,10 @@ dotfiles/agent-config.d/
 
 - Claude JSON fragments are deep-merged into `~/.claude/settings.json`; keys
   not named by a fragment are retained. The renderer is symlinked to
-  `~/.claude/statusline-command.sh`.
+  `~/.claude/statusline-command.sh`. Its queue rollup depends on
+  [`prrq#45`](https://github.com/JonathanPorta/prrq/pull/45) and consumes
+  `prrq summary --json`; when `prrq` is missing or predates that command, the
+  optional queue segment is omitted without affecting the rest of the line.
 - Codex TOML fragments currently support the deliberately narrow
   `tui.status_line` setting. The installer updates that key inside the existing
   `[tui]` table while preserving the rest of `~/.codex/config.toml` byte for
