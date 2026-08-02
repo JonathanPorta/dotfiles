@@ -69,12 +69,15 @@ def plan_claude_config(home: Path, fragments_dir: Path) -> tuple[Path, str]:
     return target, json.dumps(merged, indent=2, ensure_ascii=False) + "\n"
 
 
-def load_codex_status_line(fragments_dir: Path) -> list[str]:
+CODEX_TUI_KEYS = {"notification_condition", "notifications", "status_line"}
+
+
+def load_codex_tui_settings(fragments_dir: Path) -> dict[str, Any]:
     fragments = sorted(fragments_dir.glob("*.toml"))
     if not fragments:
         raise SafetyError(f"no Codex TOML fragments found in {fragments_dir}")
 
-    status_line: list[str] | None = None
+    settings: dict[str, Any] = {}
     for fragment_path in fragments:
         try:
             fragment = tomllib.loads(fragment_path.read_text(encoding="utf-8"))
@@ -87,26 +90,41 @@ def load_codex_status_line(fragments_dir: Path) -> list[str]:
             raise SafetyError(
                 f"Codex fragment may only contain the [tui] table: {fragment_path}"
             )
-        if set(fragment["tui"]) != {"status_line"}:
+        if not fragment["tui"]:
             raise SafetyError(
-                "Codex fragment may only set tui.status_line: " f"{fragment_path}"
+                f"Codex fragment must set at least one [tui] key: {fragment_path}"
             )
-        candidate = fragment["tui"]["status_line"]
-        if not isinstance(candidate, list) or not all(
-            isinstance(item, str) and item for item in candidate
-        ):
+        unsupported = set(fragment["tui"]) - CODEX_TUI_KEYS
+        if unsupported:
             raise SafetyError(
-                f"tui.status_line must be an array of non-empty strings: {fragment_path}"
+                "Codex fragment contains unsupported [tui] keys "
+                f"{sorted(unsupported)}: {fragment_path}"
             )
-        status_line = candidate
 
-    assert status_line is not None
-    return status_line
+        for key, candidate in fragment["tui"].items():
+            if key in {"notifications", "status_line"}:
+                if not isinstance(candidate, list) or not all(
+                    isinstance(item, str) and item for item in candidate
+                ):
+                    raise SafetyError(
+                        f"tui.{key} must be an array of non-empty strings: "
+                        f"{fragment_path}"
+                    )
+            elif key == "notification_condition" and candidate not in {
+                "always",
+                "unfocused",
+            }:
+                raise SafetyError(
+                    "tui.notification_condition must be 'always' or 'unfocused': "
+                    f"{fragment_path}"
+                )
+            settings[key] = copy.deepcopy(candidate)
+
+    return settings
 
 
 TABLE_HEADER_RE = re.compile(r"^\s*\[\[?[^]]+\]\]?\s*(?:#.*)?$")
 TUI_HEADER_RE = re.compile(r"^\s*\[tui\]\s*(?:#.*)?$")
-STATUS_LINE_RE = re.compile(r"^(?P<indent>\s*)status_line\s*=")
 
 
 def bracket_delta(line: str) -> int:
@@ -138,20 +156,27 @@ def bracket_delta(line: str) -> int:
     return delta
 
 
-def render_status_line(status_line: list[str], indent: str = "") -> list[str]:
-    lines = [f"{indent}status_line = [\n"]
-    lines.extend(
-        f"{indent}  {json.dumps(item, ensure_ascii=False)},\n"
-        for item in status_line
-    )
-    lines.append(f"{indent}]\n")
-    return lines
+def render_tui_setting(key: str, value: Any, indent: str = "") -> list[str]:
+    if isinstance(value, list):
+        lines = [f"{indent}{key} = [\n"]
+        lines.extend(
+            f"{indent}  {json.dumps(item, ensure_ascii=False)},\n" for item in value
+        )
+        lines.append(f"{indent}]\n")
+        return lines
+    if isinstance(value, str):
+        return [f"{indent}{key} = {json.dumps(value, ensure_ascii=False)}\n"]
+    raise SafetyError(f"cannot render unsupported tui.{key} value")
 
 
-def merge_codex_status_line(original: str, status_line: list[str]) -> str:
+def merge_codex_tui_setting(original: str, key: str, value: Any) -> str:
     lines = original.splitlines(keepends=True)
     tui_index = next(
-        (index for index, line in enumerate(lines) if TUI_HEADER_RE.match(line.rstrip("\n"))),
+        (
+            index
+            for index, line in enumerate(lines)
+            if TUI_HEADER_RE.match(line.rstrip("\r\n"))
+        ),
         None,
     )
 
@@ -161,20 +186,21 @@ def merge_codex_status_line(original: str, status_line: list[str]) -> str:
         if lines and lines[-1].strip():
             lines.append("\n")
         lines.append("[tui]\n")
-        lines.extend(render_status_line(status_line))
+        lines.extend(render_tui_setting(key, value))
         return "".join(lines)
 
     table_end = len(lines)
     for index in range(tui_index + 1, len(lines)):
-        if TABLE_HEADER_RE.match(lines[index].rstrip("\n")):
+        if TABLE_HEADER_RE.match(lines[index].rstrip("\r\n")):
             table_end = index
             break
 
+    setting_re = re.compile(rf"^(?P<indent>\s*){re.escape(key)}\s*=")
     existing_index: int | None = None
     existing_end: int | None = None
     indent = ""
     for index in range(tui_index + 1, table_end):
-        match = STATUS_LINE_RE.match(lines[index])
+        match = setting_re.match(lines[index])
         if not match:
             continue
         existing_index = index
@@ -185,16 +211,25 @@ def merge_codex_status_line(original: str, status_line: list[str]) -> str:
             depth += bracket_delta(lines[existing_end])
             existing_end += 1
         if depth != 0:
-            raise SafetyError("could not find the end of existing tui.status_line")
+            raise SafetyError(f"could not find the end of existing tui.{key}")
         break
 
-    replacement = render_status_line(status_line, indent)
+    replacement = render_tui_setting(key, value, indent)
     if existing_index is not None and existing_end is not None:
         lines[existing_index:existing_end] = replacement
     else:
         insert_at = tui_index + 1
         lines[insert_at:insert_at] = replacement
     return "".join(lines)
+
+
+def merge_codex_tui_settings(original: str, settings: dict[str, Any]) -> str:
+    merged = original
+    # Missing keys are inserted directly after [tui]. Apply in reverse so their
+    # final order still follows the lexical fragment order.
+    for key in reversed(settings):
+        merged = merge_codex_tui_setting(merged, key, settings[key])
+    return merged
 
 
 def plan_codex_config(home: Path, fragments_dir: Path) -> tuple[Path, str]:
@@ -207,16 +242,20 @@ def plan_codex_config(home: Path, fragments_dir: Path) -> tuple[Path, str]:
         except tomllib.TOMLDecodeError as exc:
             raise SafetyError(f"cannot parse Codex config {target}: {exc}") from exc
 
-    status_line = load_codex_status_line(fragments_dir)
-    merged = merge_codex_status_line(original, status_line)
+    settings = load_codex_tui_settings(fragments_dir)
+    merged = merge_codex_tui_settings(original, settings)
     try:
         parsed = tomllib.loads(merged)
     except tomllib.TOMLDecodeError as exc:
         raise SafetyError(
             f"refusing to write invalid merged Codex config {target}: {exc}"
         ) from exc
-    if parsed.get("tui", {}).get("status_line") != status_line:
-        raise SafetyError("merged Codex config did not retain the requested status line")
+    parsed_tui = parsed.get("tui", {})
+    for key, expected in settings.items():
+        if parsed_tui.get(key) != expected:
+            raise SafetyError(
+                f"merged Codex config did not retain the requested tui.{key}"
+            )
     return target, merged
 
 
@@ -315,22 +354,27 @@ def main() -> int:
     claude_target, claude_content = plan_claude_config(
         args.home, fragments_root / "claude"
     )
-    codex_target, codex_content = plan_codex_config(
-        args.home, fragments_root / "codex"
-    )
+    codex_plan = None
+    if shutil.which("codex") is not None:
+        codex_plan = plan_codex_config(args.home, fragments_root / "codex")
     renderer_plan = plan_symlink(
         fragments_root / "claude" / "statusline-command.sh",
         args.home / ".claude" / "statusline-command.sh",
     )
 
     claude_changed = atomic_write(claude_target, claude_content)
-    codex_changed = atomic_write(codex_target, codex_content)
+    codex_changed = atomic_write(*codex_plan) if codex_plan is not None else None
     renderer_changed = apply_symlink(renderer_plan)
 
+    if codex_changed is None:
+        codex_result = "skipped (not installed)"
+    else:
+        codex_result = "updated" if codex_changed else "unchanged"
+
     print(
-        "Agent status config: "
+        "Agent config: "
         f"Claude {'updated' if claude_changed else 'unchanged'}, "
-        f"Codex {'updated' if codex_changed else 'unchanged'}, "
+        f"Codex {codex_result}, "
         f"renderer {'linked' if renderer_changed else 'unchanged'}."
     )
     return 0

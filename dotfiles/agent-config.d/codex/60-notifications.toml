@@ -1,0 +1,5 @@
+# Auto-review handles eligible approval requests without human input, so only
+# notify when the agent turn itself finishes and the terminal is not focused.
+[tui]
+notifications = ["agent-turn-complete"]
+notification_condition = "unfocused"

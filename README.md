@@ -109,7 +109,7 @@ After `init.sh` completes, restart your shell and run `run.sh` (see below).
 
 | | |
 |---|---|
-| **Purpose** | Installs applications and dev tools: oh-my-zsh + plugins, vim, gpg, git-lfs, gh CLI, ruby, python, node, and more via Homebrew (macOS) or dnf (Fedora). Re-runs symlinks first, then installs Claude and Codex status-line fragments. |
+| **Purpose** | Installs applications and dev tools: oh-my-zsh + plugins, vim, gpg, git-lfs, gh CLI, ruby, python, node, and more via Homebrew (macOS) or dnf (Fedora). Re-runs symlinks first, then installs Claude and Codex agent-config fragments. |
 | **Idempotency** | **Safe to re-run.** Package managers skip already-installed packages. Agent config is validated and only rewritten when the merged result changes. |
 | **Destructive?** | Re-runs `symlink.sh` (same backup behavior as `init.sh`). Agent config preserves unrelated keys and creates one `*.pre-agent-config` recovery copy before its first change. |
 
@@ -121,7 +121,7 @@ zsh -lc "$HOME/devel/$USER/dotfiles/run.sh"
 
 ---
 
-## Agent status lines
+## Agent configuration
 
 `init.sh` and `run.sh` invoke `installation/agent-config.sh`. The wrapper selects
 an available Python 3.11+ interpreter (required for the standard-library TOML
@@ -137,7 +137,8 @@ dotfiles/agent-config.d/
 │   ├── 50-status-line.json
 │   └── statusline-command.sh
 └── codex/
-    └── 50-status-line.toml
+    ├── 50-status-line.toml
+    └── 60-notifications.toml
 ```
 
 - Claude JSON fragments are deep-merged into `~/.claude/settings.json`; keys
@@ -149,20 +150,25 @@ dotfiles/agent-config.d/
   Context-pressure breadcrumbs use the stable
   `~/.local/state/claude-statusline/claude-ctx-<project-hash>.breadcrumb` reader
   contract inside a mode-`0700` directory; each breadcrumb is mode `0600`.
-- Codex TOML fragments currently support the deliberately narrow
-  `tui.status_line` setting. The installer updates that key inside the existing
-  `[tui]` table while preserving the rest of `~/.codex/config.toml` byte for
-  byte. Codex's native footer covers model, reasoning effort, context, 5-hour
-  and weekly usage, pull request number, branch changes, and project name.
+- Codex TOML fragments support a deliberately narrow allowlist:
+  `tui.status_line`, `tui.notifications`, and `tui.notification_condition`.
+  The installer updates only those keys inside the existing `[tui]` table while
+  preserving the rest of `~/.codex/config.toml` byte for byte. It applies Codex
+  fragments only when a `codex` executable is available on `PATH`; otherwise,
+  Codex config is left entirely untouched. The notification policy alerts on
+  `agent-turn-complete` while the terminal is unfocused, avoiding the
+  `approval-requested` noise produced while Auto-review is handling a request.
+  Codex's native footer covers model, reasoning effort, context, 5-hour and
+  weekly usage, pull request number, branch changes, and project name.
 - Codex does not currently allow custom status-line commands, so Claude's cost
   figures and `prrq` queue rollup cannot be added to the Codex footer through
   configuration. Unsupported data is omitted instead of being scraped from
   session logs.
 
-Before either config is written, both existing configs, all fragments, and the
+Before any selected config is written, existing configs, fragments, and the
 renderer replacement/backup path are preflighted. Invalid JSON/TOML, a symlinked
-config, or an unsafe renderer backup conflict aborts the run without touching
-either config. The first changed version is copied to
+config, or an unsafe renderer backup conflict aborts the run without partial
+writes. The first changed version is copied to
 `*.pre-agent-config`; subsequent identical runs perform no writes.
 
 Run the preservation and idempotency test with:

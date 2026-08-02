@@ -7,6 +7,16 @@ installer="$repo_root/installation/agent-config.sh"
 test_root=$(mktemp -d)
 trap 'rm -rf "$test_root"' EXIT
 
+python_bin=$(command -v python3)
+codex_bin_dir="$test_root/with-codex"
+mkdir -p "$codex_bin_dir"
+cat >"$codex_bin_dir/codex" <<'SH'
+#!/usr/bin/env bash
+exit 0
+SH
+chmod +x "$codex_bin_dir/codex"
+export PATH="$codex_bin_dir:$PATH"
+
 fail() {
   echo "FAIL: $*" >&2
   exit 1
@@ -74,7 +84,8 @@ pet = "null-signal"
 status_line = [
   "current-dir",
 ]
-notifications = ["agent-turn-complete"]
+notifications = ["approval-requested"]
+notification_condition = "always"
 
 [projects."/tmp/sentinel"]
 trust_level = "trusted"
@@ -116,6 +127,7 @@ assert config["model"] == "sentinel-model"
 assert config["features"]["hooks"] is True
 assert config["tui"]["pet"] == "null-signal"
 assert config["tui"]["notifications"] == ["agent-turn-complete"]
+assert config["tui"]["notification_condition"] == "unfocused"
 assert config["tui"]["status_line"] == expected
 assert config["projects"]["/tmp/sentinel"]["trust_level"] == "trusted"
 PY
@@ -149,7 +161,43 @@ with open(sys.argv[1], "rb") as handle:
     config = tomllib.load(handle)
 assert config["model"] == "keep-me"
 assert config["tui"]["status_line"][0] == "model"
+assert config["tui"]["notifications"] == ["agent-turn-complete"]
+assert config["tui"]["notification_condition"] == "unfocused"
 PY
+
+# Codex config is left entirely alone when the codex executable is unavailable.
+no_codex_path="$test_root/path-without-codex"
+mkdir -p "$no_codex_path"
+ln -s "$(command -v dirname)" "$no_codex_path/dirname"
+
+no_codex_home="$test_root/no-codex-home"
+mkdir -p "$no_codex_home/.claude" "$no_codex_home/.codex"
+printf '%s\n' '{"sentinel": "claude-is-still-configured"}' \
+  >"$no_codex_home/.claude/settings.json"
+cat >"$no_codex_home/.codex/config.toml" <<'TOML'
+# codex-must-remain-byte-identical
+[tui]
+notifications = ["approval-requested"]
+TOML
+cp "$no_codex_home/.codex/config.toml" "$test_root/no-codex-before.toml"
+HOME="$no_codex_home" PATH="$no_codex_path" PYTHON3_BIN="$python_bin" \
+  /bin/bash "$installer" >/dev/null
+cmp "$test_root/no-codex-before.toml" \
+  "$no_codex_home/.codex/config.toml" || \
+  fail "missing Codex changed an existing Codex config"
+[ ! -e "$no_codex_home/.codex/config.toml.pre-agent-config" ] || \
+  fail "missing Codex created a Codex config backup"
+jq -e '.statusLine.command == "bash \"$HOME/.claude/statusline-command.sh\""' \
+  "$no_codex_home/.claude/settings.json" >/dev/null || \
+  fail "missing Codex prevented Claude configuration"
+
+fresh_no_codex_home="$test_root/fresh-no-codex-home"
+mkdir -p "$fresh_no_codex_home/.claude"
+printf '%s\n' '{}' >"$fresh_no_codex_home/.claude/settings.json"
+HOME="$fresh_no_codex_home" PATH="$no_codex_path" PYTHON3_BIN="$python_bin" \
+  /bin/bash "$installer" >/dev/null
+[ ! -e "$fresh_no_codex_home/.codex/config.toml" ] || \
+  fail "missing Codex created a new Codex config"
 
 # Invalid inputs abort before either agent config is touched.
 invalid_home="$test_root/invalid-home"
