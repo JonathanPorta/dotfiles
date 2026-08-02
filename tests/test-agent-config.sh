@@ -15,6 +15,29 @@ fail() {
 test_home="$test_root/home"
 mkdir -p "$test_home/.claude" "$test_home/.codex"
 
+# The optional wrapper must not abort bootstrap under a system Python that lacks
+# tomllib. The explicit override makes the minimum-interpreter path deterministic
+# on CI hosts whose /usr/bin/python3 version varies.
+incompatible_python="$test_root/python-without-tomllib"
+cat >"$incompatible_python" <<'SH'
+#!/usr/bin/env bash
+if [ "${1:-}" = "-c" ]; then
+  exit 1
+fi
+echo "incompatible interpreter was invoked after the capability check" >&2
+exit 99
+SH
+chmod +x "$incompatible_python"
+deferred_home="$test_root/deferred-home"
+deferred_output=$(HOME="$deferred_home" PYTHON3_BIN="$incompatible_python" \
+  "$installer" 2>&1) || fail "incompatible Python made the optional installer fail"
+grep -F 'Python 3.11+ with tomllib is unavailable' <<<"$deferred_output" >/dev/null || \
+  fail "incompatible Python did not produce the deferral notice"
+[ ! -e "$deferred_home/.claude/settings.json" ] || \
+  fail "deferred install wrote Claude settings"
+[ ! -e "$deferred_home/.codex/config.toml" ] || \
+  fail "deferred install wrote Codex config"
+
 cat >"$test_home/.claude/settings.json" <<'JSON'
 {
   "permissions": {
@@ -164,6 +187,41 @@ fi
 grep -F 'external-config' "$test_root/external.json" >/dev/null
 [ -L "$symlink_home/.claude/settings.json" ] || \
   fail "Claude config symlink was removed"
+
+# A renderer backup conflict is discovered before either config is written.
+renderer_conflict_home="$test_root/renderer-conflict-home"
+mkdir -p "$renderer_conflict_home/.claude" "$renderer_conflict_home/.codex"
+printf '%s\n' '{"sentinel": "claude-before-conflict"}' \
+  >"$renderer_conflict_home/.claude/settings.json"
+printf '%s\n' 'model = "codex-before-conflict"' \
+  >"$renderer_conflict_home/.codex/config.toml"
+printf '%s\n' 'renderer-owned-by-user' \
+  >"$renderer_conflict_home/.claude/statusline-command.sh"
+printf '%s\n' 'different-existing-backup' \
+  >"$renderer_conflict_home/.claude/statusline-command.sh.pre-agent-config"
+cp "$renderer_conflict_home/.claude/settings.json" \
+  "$test_root/renderer-conflict-claude-before.json"
+cp "$renderer_conflict_home/.codex/config.toml" \
+  "$test_root/renderer-conflict-codex-before.toml"
+if HOME="$renderer_conflict_home" "$installer" >/dev/null 2>&1; then
+  fail "installer accepted a conflicting renderer backup"
+fi
+cmp "$test_root/renderer-conflict-claude-before.json" \
+  "$renderer_conflict_home/.claude/settings.json" || \
+  fail "renderer conflict changed Claude settings before failure"
+cmp "$test_root/renderer-conflict-codex-before.toml" \
+  "$renderer_conflict_home/.codex/config.toml" || \
+  fail "renderer conflict changed Codex config before failure"
+grep -F 'renderer-owned-by-user' \
+  "$renderer_conflict_home/.claude/statusline-command.sh" >/dev/null || \
+  fail "renderer conflict changed the existing renderer"
+grep -F 'different-existing-backup' \
+  "$renderer_conflict_home/.claude/statusline-command.sh.pre-agent-config" >/dev/null || \
+  fail "renderer conflict changed the existing backup"
+[ ! -e "$renderer_conflict_home/.claude/settings.json.pre-agent-config" ] || \
+  fail "renderer conflict created a Claude backup before failing"
+[ ! -e "$renderer_conflict_home/.codex/config.toml.pre-agent-config" ] || \
+  fail "renderer conflict created a Codex backup before failing"
 
 # Render a representative Claude payload, including the prrq queue summary.
 mkdir -p "$test_root/prrq"

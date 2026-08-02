@@ -123,11 +123,13 @@ zsh -lc "$HOME/devel/$USER/dotfiles/run.sh"
 
 ## Agent status lines
 
-`init.sh` invokes `installation/agent-config.sh` when Python is already
-available; otherwise it defers the step until `run.sh` installs Python. The
-installer discovers fragments in lexical order, giving this repo a small
-Linux-style `config.d` layer even though the agent CLIs do not natively load
-config directories:
+`init.sh` and `run.sh` invoke `installation/agent-config.sh`. The wrapper selects
+an available Python 3.11+ interpreter (required for the standard-library TOML
+parser); if none is available, this optional step prints a deferral notice and
+returns successfully so the rest of the machine bootstrap continues. Re-run the
+wrapper after installing a compatible Python. The installer discovers fragments
+in lexical order, giving this repo a small Linux-style `config.d` layer even
+though the agent CLIs do not natively load config directories:
 
 ```text
 dotfiles/agent-config.d/
@@ -151,8 +153,9 @@ dotfiles/agent-config.d/
   configuration. Unsupported data is omitted instead of being scraped from
   session logs.
 
-Before either config is written, both existing configs and all fragments are
-parsed. Invalid JSON/TOML or a symlinked config aborts the run without touching
+Before either config is written, both existing configs, all fragments, and the
+renderer replacement/backup path are preflighted. Invalid JSON/TOML, a symlinked
+config, or an unsafe renderer backup conflict aborts the run without touching
 either config. The first changed version is copied to
 `*.pre-agent-config`; subsequent identical runs perform no writes.
 

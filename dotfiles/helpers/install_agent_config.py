@@ -251,11 +251,17 @@ def atomic_write(path: Path, content: str) -> bool:
     return True
 
 
-def ensure_symlink(source: Path, destination: Path) -> bool:
-    source = source.resolve(strict=True)
-    destination.parent.mkdir(parents=True, exist_ok=True)
+def plan_symlink(
+    source: Path, destination: Path
+) -> tuple[Path, Path, str, Path | None]:
+    """Validate a renderer update without changing the filesystem."""
+    try:
+        source = source.resolve(strict=True)
+    except OSError as exc:
+        raise SafetyError(f"cannot resolve renderer source {source}: {exc}") from exc
+
     if destination.is_symlink() and os.readlink(destination) == str(source):
-        return False
+        return source, destination, "unchanged", None
 
     if os.path.lexists(destination):
         backup = destination.with_name(destination.name + ".pre-agent-config")
@@ -269,9 +275,26 @@ def ensure_symlink(source: Path, destination: Path) -> bool:
                 raise SafetyError(
                     f"refusing to replace {destination}; backup already exists at {backup}"
                 )
-            destination.unlink()
-        else:
-            os.replace(destination, backup)
+            return source, destination, "remove", None
+        return source, destination, "backup", backup
+
+    return source, destination, "link", None
+
+
+def apply_symlink(plan: tuple[Path, Path, str, Path | None]) -> bool:
+    """Apply a preflighted renderer update."""
+    source, destination, action, backup = plan
+    if action == "unchanged":
+        return False
+
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    if action == "backup":
+        assert backup is not None
+        os.replace(destination, backup)
+    elif action == "remove":
+        destination.unlink()
+    elif action != "link":
+        raise RuntimeError(f"unknown renderer plan action: {action}")
 
     destination.symlink_to(source)
     return True
@@ -295,13 +318,14 @@ def main() -> int:
     codex_target, codex_content = plan_codex_config(
         args.home, fragments_root / "codex"
     )
-
-    claude_changed = atomic_write(claude_target, claude_content)
-    codex_changed = atomic_write(codex_target, codex_content)
-    renderer_changed = ensure_symlink(
+    renderer_plan = plan_symlink(
         fragments_root / "claude" / "statusline-command.sh",
         args.home / ".claude" / "statusline-command.sh",
     )
+
+    claude_changed = atomic_write(claude_target, claude_content)
+    codex_changed = atomic_write(codex_target, codex_content)
+    renderer_changed = apply_symlink(renderer_plan)
 
     print(
         "Agent status config: "
