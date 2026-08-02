@@ -109,15 +109,58 @@ After `init.sh` completes, restart your shell and run `run.sh` (see below).
 
 | | |
 |---|---|
-| **Purpose** | Installs applications and dev tools: oh-my-zsh + plugins, vim, gpg, git-lfs, gh CLI, ruby, python, node, and more via Homebrew (macOS) or dnf (Fedora). Re-runs symlinks first. |
-| **Idempotency** | **Safe to re-run.** Package managers skip already-installed packages. Oh-my-zsh warns (but does not fail) if already present. |
-| **Destructive?** | Re-runs `symlink.sh` (same backup behavior as `init.sh`). |
+| **Purpose** | Installs applications and dev tools: oh-my-zsh + plugins, vim, gpg, git-lfs, gh CLI, ruby, python, node, and more via Homebrew (macOS) or dnf (Fedora). Re-runs symlinks first, then installs Claude and Codex status-line fragments. |
+| **Idempotency** | **Safe to re-run.** Package managers skip already-installed packages. Agent config is validated and only rewritten when the merged result changes. |
+| **Destructive?** | Re-runs `symlink.sh` (same backup behavior as `init.sh`). Agent config preserves unrelated keys and creates one `*.pre-agent-config` recovery copy before its first change. |
 
 ```bash
 zsh -lc "$HOME/devel/$USER/dotfiles/run.sh"
 ```
 
 > **Note:** `run.sh` expects to run under `zsh` with a login shell so that the full environment (Homebrew PATH, etc.) is available.
+
+---
+
+## Agent status lines
+
+`init.sh` invokes `installation/agent-config.sh` when Python is already
+available; otherwise it defers the step until `run.sh` installs Python. The
+installer discovers fragments in lexical order, giving this repo a small
+Linux-style `config.d` layer even though the agent CLIs do not natively load
+config directories:
+
+```text
+dotfiles/agent-config.d/
+├── claude/
+│   ├── 50-status-line.json
+│   └── statusline-command.sh
+└── codex/
+    └── 50-status-line.toml
+```
+
+- Claude JSON fragments are deep-merged into `~/.claude/settings.json`; keys
+  not named by a fragment are retained. The renderer is symlinked to
+  `~/.claude/statusline-command.sh`.
+- Codex TOML fragments currently support the deliberately narrow
+  `tui.status_line` setting. The installer updates that key inside the existing
+  `[tui]` table while preserving the rest of `~/.codex/config.toml` byte for
+  byte. Codex's native footer covers model, reasoning effort, context, 5-hour
+  and weekly usage, pull request number, branch changes, and project name.
+- Codex does not currently allow custom status-line commands, so Claude's cost
+  figures and `prrq` queue rollup cannot be added to the Codex footer through
+  configuration. Unsupported data is omitted instead of being scraped from
+  session logs.
+
+Before either config is written, both existing configs and all fragments are
+parsed. Invalid JSON/TOML or a symlinked config aborts the run without touching
+either config. The first changed version is copied to
+`*.pre-agent-config`; subsequent identical runs perform no writes.
+
+Run the preservation and idempotency test with:
+
+```bash
+bash tests/test-agent-config.sh
+```
 
 ---
 

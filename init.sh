@@ -136,6 +136,14 @@ if ! command -v jq >/dev/null 2>&1; then
     fi
 fi
 
+# Python is installed by run.sh on a fresh machine. If it is already available,
+# install agent status config now; otherwise run.sh performs this step later.
+if command -v python3 >/dev/null 2>&1; then
+    "$DOTFILES_CHECKOUT/installation/agent-config.sh"
+else
+    echo "Deferring Claude/Codex status-line config until run.sh installs Python."
+fi
+
 echo "Ensure authorized keys are synced to local authorized_keys..."
 mkdir -p $SSH_DIR
 # we want to be able to run this and update the authorized keys with whatever we have on GH
