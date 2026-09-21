@@ -1,0 +1,12 @@
+schema: blessed/repo/v1
+project: dotfiles
+component: bootstrap
+repo_type: cli
+stage: active
+stack: [bash, zsh, python, macos, fedora]
+standards: []
+capabilities: [ai-rules-subtree]
+tracked_dependencies:
+  ai_rules:
+    origin: https://github.com/JonathanPorta/ai-rules
+    tag: v0.13.1
