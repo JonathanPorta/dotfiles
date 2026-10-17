@@ -70,6 +70,18 @@ if [ -f "$HOME/.chruby" ]; then
 fi
 ln -s "$HOME/dotfiles/.chruby" "$HOME/.chruby"
 
+# Link the tmux config to the dotfiles repo
+echo "Ensure symlink of '$HOME/.tmux.conf' points to '$HOME/dotfiles/.tmux.conf'..."
+if [ -L "$HOME/.tmux.conf" ] && [ "$(readlink "$HOME/.tmux.conf")" = "$HOME/dotfiles/.tmux.conf" ]; then
+  echo "'$HOME/.tmux.conf' already points to '$HOME/dotfiles/.tmux.conf' - nothing to do."
+elif [ -e "$HOME/.tmux.conf" ] || [ -L "$HOME/.tmux.conf" ]; then
+  echo "'$HOME/.tmux.conf' already exists - renaming to '$HOME/.tmux.conf.old$NOW' and linking to '$HOME/dotfiles/.tmux.conf'."
+  mv "$HOME/.tmux.conf" "$HOME/.tmux.conf.old$NOW"
+  ln -s "$HOME/dotfiles/.tmux.conf" "$HOME/.tmux.conf"
+else
+  ln -s "$HOME/dotfiles/.tmux.conf" "$HOME/.tmux.conf"
+fi
+
 # Link the helpers directory to $HOME/.helpers
 echo "Ensure symlink of '$HOME/.helpers' points to '$HOME/dotfiles/helpers'..."
 if [ -L "$HOME/.helpers" ] && [ "$(readlink "$HOME/.helpers")" = "$HOME/dotfiles/helpers" ]; then

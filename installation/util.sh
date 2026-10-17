@@ -28,9 +28,10 @@ echo_green "Done."
 # gh cli
 if [[ $OS == 'linux' ]]; then
   echo_green "Installing gh cli for fedora..."
-  sudo dnf install dnf5-plugins
-  sudo dnf config-manager addrepo --from-repofile=https://cli.github.com/packages/rpm/gh-cli.repo
-  sudo dnf install gh --repo gh-cli
+  # Fetch the repo file directly so this works with both dnf4 and dnf5, and so
+  # each run picks up GitHub's current signing-key URL.
+  curl -fsSL https://cli.github.com/packages/rpm/gh-cli.repo | sudo tee /etc/yum.repos.d/gh-cli.repo > /dev/null
+  pkg_install gh --repo gh-cli
   echo_green "Done."
 elif [[ $OS == 'darwin' ]]; then
   echo_green "Installing gh cli for darwin..."
@@ -38,26 +39,20 @@ elif [[ $OS == 'darwin' ]]; then
   echo_green "Done."
 fi
 
-# gh cli extensions
-gh extension install vilmibm/gh-screensaver
+# gh cli extensions (these need a logged-in gh)
+if (exists gh) && gh auth status >/dev/null 2>&1; then
+  gh extension list | grep -q vilmibm/gh-screensaver || gh extension install vilmibm/gh-screensaver
+else
+  echo_cyan "Skipping gh extensions: run 'gh auth login', then re-run this script."
+fi
 
 # GPG is now installed via $INSTALLATION_SOURCE_DIR/gpg.sh
 
-# git-lfs - https://git-lfs.github.com
-# TODO: Have a way to test if a command returns non-0 since this check ensures we always try to install git-lfs
-if ! (exists "git lfs install"); then
+# git-lfs - https://git-lfs.github.com (Fedora and Homebrew both package it)
+if ! git lfs version >/dev/null 2>&1; then
   echo_green "Installing git-lfs..."
-  if [[ $OS == 'linux' ]]; then
-    curl -s -o ./gitlfs.sh "https://packagecloud.io/install/repositories/github/git-lfs/script.rpm.sh"
-    chmod +x ./gitlfs.sh
-    sudo os=fedora dist=32 ./gitlfs.sh
-    pkg_install git-lfs
-    git lfs install
-    rm ./gitlfs.sh
-  elif [[ $OS == 'darwin' ]]; then
-    # install_dmg "https://github.com/git-lfs/git-lfs/releases/download/v2.13.1/git-lfs-darwin-amd64-v2.13.1.zip"
-    pkg_install git-lfs
-  fi
+  pkg_install git-lfs
+  git lfs install
   echo_green "Done."
 else
   echo_cyan "git-lfs is already installed. Skipping..."

@@ -5,11 +5,15 @@ INSTALL_DIR=$(dirname "$0")
 source $INSTALLATION_SOURCE_DIR/include/lib.sh
 # set -e
 
-echo_green "Installing oh-my-zsh..."
-source $HOME/.zshrc
-sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
-source $HOME/.zshrc
-echo_green "Done."
+if [ -d "$HOME/.oh-my-zsh" ]; then
+  echo_cyan "'$HOME/.oh-my-zsh' already exists. Skipping..."
+else
+  echo_green "Installing oh-my-zsh..."
+  source $HOME/.zshrc
+  sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
+  source $HOME/.zshrc
+  echo_green "Done."
+fi
 
 # Do this again because oh-my-zsh removes it
 # Replace existing .zshrc in $HOME with a link to our dotfile version
@@ -23,10 +27,11 @@ ln -s "$HOME/dotfiles/.zshrc" "$HOME/.zshrc"
 # OhMyZSH plugins
 echo_green "Installing oh-my-zsh customizations..."
 source $HOME/.zshrc
-git clone https://github.com/denysdovhan/spaceship-prompt.git --branch v4.21.1 "$ZSH_CUSTOM/themes/spaceship-prompt"
-ln -s "$ZSH_CUSTOM/themes/spaceship-prompt/spaceship.zsh-theme" "$ZSH_CUSTOM/themes/spaceship.zsh-theme"
-git clone https://github.com/zsh-users/zsh-completions "$ZSH_CUSTOM/plugins/zsh-completions"
-git clone https://github.com/txstc55/dogesay "$ZSH_CUSTOM/plugins/dogesay"
+# Each step is skipped when its result already exists, so re-runs stay quiet.
+[ -d "$ZSH_CUSTOM/themes/spaceship-prompt" ] || git clone https://github.com/denysdovhan/spaceship-prompt.git --branch v4.21.1 "$ZSH_CUSTOM/themes/spaceship-prompt"
+[ -L "$ZSH_CUSTOM/themes/spaceship.zsh-theme" ] || ln -s "$ZSH_CUSTOM/themes/spaceship-prompt/spaceship.zsh-theme" "$ZSH_CUSTOM/themes/spaceship.zsh-theme"
+[ -d "$ZSH_CUSTOM/plugins/zsh-completions" ] || git clone https://github.com/zsh-users/zsh-completions "$ZSH_CUSTOM/plugins/zsh-completions"
+[ -d "$ZSH_CUSTOM/plugins/dogesay" ] || git clone https://github.com/txstc55/dogesay "$ZSH_CUSTOM/plugins/dogesay"
 source $HOME/.zshrc
 echo_green "Done."
 

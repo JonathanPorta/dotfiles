@@ -30,6 +30,14 @@ for candidate in "${python_candidates[@]}"; do
   fi
 done
 
+# No suitable system Python: let uv supply one, unless a caller pinned PYTHON3_BIN.
+uv_bin=$(command -v uv || echo "$HOME/.local/bin/uv")
+if [ -z "$python_bin" ] && [ -z "${PYTHON3_BIN:-}" ] && [ -x "$uv_bin" ]; then
+  python_bin=$("$uv_bin" python find '>=3.11' 2>/dev/null) ||
+    { "$uv_bin" python install 3.12 >/dev/null 2>&1 && python_bin=$("$uv_bin" python find 3.12 2>/dev/null); } ||
+    python_bin=""
+fi
+
 if [ -z "$python_bin" ]; then
   echo "Skipping optional Claude/Codex agent config: Python 3.11+ with tomllib is unavailable." >&2
   echo "Re-run installation/agent-config.sh after installing a compatible Python." >&2
