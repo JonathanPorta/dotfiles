@@ -6,8 +6,9 @@ source $INSTALLATION_SOURCE_DIR/include/lib.sh
 # set -e
 
 # nvm
-if ! (exists nvm); then
-  echo_green "Installing latest node.js..."
+# nvm is a shell function, so check for its directory rather than a command.
+if [ ! -d "$HOME/.nvm" ]; then
+  echo_green "Installing nvm..."
   NVM_DIR="$HOME/.nvm" && (
     git clone https://github.com/nvm-sh/nvm.git "$NVM_DIR"
     cd "$NVM_DIR"
@@ -17,6 +18,7 @@ if ! (exists nvm); then
   echo_green "Done."
 else
   echo_cyan "nvm is already installed. Skipping..."
+  \. "$HOME/.nvm/nvm.sh"
 fi
 
 # node

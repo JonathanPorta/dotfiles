@@ -23,6 +23,8 @@ if ! (exists uv); then
 else
   echo_cyan "uv is already installed. Skipping..."
 fi
+# uv and the tools it installs live here; a fresh install isn't on PATH yet.
+export PATH="$HOME/.local/bin:$PATH"
 
 
 if ! (exists virtualenv); then
@@ -44,7 +46,7 @@ fi
 
 if ! (exists poetry); then
   echo_green "Installing poetry..."
-  pipx install poetry
+  uv tool install poetry
   echo_green "Done."
 else
   echo_cyan "poetry is already installed. Skipping..."

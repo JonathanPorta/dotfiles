@@ -91,9 +91,9 @@ HEADLESS=true ./init.sh
 
 | | |
 |---|---|
-| **Purpose** | Clones this repo (via HTTPS), symlinks shell configs (`.zshrc`, `.zshenv`, `.zprofile`, `.gitignore_global`, `.chruby`, `.helpers`) into `$HOME`, directory-symlinks `dotfiles/cmux/` (the cmux notification-sound pool) into `~/.sounds/cmux/` and renders `~/.config/cmux/settings.json` from the JSONC template (which delegates per-notification sound playback to the `cmux-random-sound` helper, a symlink to the shared `agent-random-sound` engine), installs `jq` and `zsh` if missing, and syncs GitHub `authorized_keys`. |
+| **Purpose** | Clones this repo (via HTTPS), symlinks shell configs (`.zshrc`, `.zshenv`, `.zprofile`, `.gitignore_global`, `.chruby`, `.tmux.conf`, `.helpers`) into `$HOME`, directory-symlinks `dotfiles/cmux/` (the cmux notification-sound pool) into `~/.sounds/cmux/` and renders `~/.config/cmux/settings.json` from the JSONC template (which delegates per-notification sound playback to the `cmux-random-sound` helper, a symlink to the shared `agent-random-sound` engine), installs `jq` and `zsh` if missing, and syncs GitHub `authorized_keys`. |
 | **Idempotency** | **Mostly safe to re-run.** If the repo already exists it does a `git fetch` instead of cloning. Existing dotfiles in `$HOME` are renamed to `*.old<timestamp>` before re-linking, so nothing is silently lost. |
-| **Destructive?** | Moves existing `.zshrc`, `.zshenv`, `.zprofile`, `.gitignore_global`, `.chruby` to timestamped backups. Truncates `authorized_keys`. **Overwrites `~/.config/cmux/settings.json`** from the tracked template — edit `dotfiles/cmux-settings.json`, not the rendered file. |
+| **Destructive?** | Moves existing `.zshrc`, `.zshenv`, `.zprofile`, `.gitignore_global`, `.chruby`, and any `.tmux.conf` that isn't already linked here to timestamped backups. Truncates `authorized_keys`. **Overwrites `~/.config/cmux/settings.json`** from the tracked template — edit `dotfiles/cmux-settings.json`, not the rendered file. |
 
 ```bash
 ./init.sh            # interactive
@@ -109,8 +109,8 @@ After `init.sh` completes, restart your shell and run `run.sh` (see below).
 
 | | |
 |---|---|
-| **Purpose** | Installs applications and dev tools: oh-my-zsh + plugins, vim, gpg, git-lfs, gh CLI, ruby, python, node, and more via Homebrew (macOS) or dnf (Fedora). Re-runs symlinks first, then installs Claude and Codex agent-config fragments. |
-| **Idempotency** | **Safe to re-run.** Package managers skip already-installed packages. Agent config is validated and only rewritten when the merged result changes. |
+| **Purpose** | Installs applications and dev tools: oh-my-zsh + plugins, vim, gpg, git-lfs, gh CLI, ruby, python, node, and more via Homebrew (macOS) or dnf (Fedora, dnf4 or dnf5). Warns when the Fedora release is past end of life. Re-runs symlinks first, then installs Claude and Codex agent-config fragments (using a `uv`-managed Python when the system one is older than 3.11). gh extensions are installed only once `gh auth login` has been run. |
+| **Idempotency** | **Safe to re-run.** Package managers skip already-installed packages, and oh-my-zsh, its plugins, and nvm are skipped when already present. Agent config is validated and only rewritten when the merged result changes. |
 | **Destructive?** | Re-runs `symlink.sh` (same backup behavior as `init.sh`). Agent config preserves unrelated keys and creates one `*.pre-agent-config` recovery copy before its first change. |
 
 ```bash
@@ -118,6 +118,12 @@ zsh -lc "$HOME/devel/$USER/dotfiles/run.sh"
 ```
 
 > **Note:** `run.sh` expects to run under `zsh` with a login shell so that the full environment (Homebrew PATH, etc.) is available.
+
+---
+
+## tmux
+
+`dotfiles/.tmux.conf` is linked to `~/.tmux.conf`. It turns on `set-clipboard` and binds **prefix + `Y`** to copy the current pane's entire scrollback to the system clipboard. That works over SSH too, as long as your terminal allows OSC 52 clipboard access (in iTerm2: **Settings → General → Selection → "Applications in terminal may access clipboard"**). Needs tmux 3.2 or newer.
 
 ---
 
