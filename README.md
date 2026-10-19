@@ -124,7 +124,10 @@ zsh -lc "$HOME/devel/$USER/dotfiles/run.sh"
 Public package operations in `init.sh` and the installers use `github.com`, even
 when `GH_HOST` or system/global Git URL rewrites select enterprise GitHub. A
 temporary Git configuration preserves proxy and certificate settings and rewrites
-for other hosts. Work-repository settings and saved logins are not changed. When
+for other hosts. The snapshot is read outside any repository, so credentials
+enabled by repository-conditional includes are not copied into global settings
+for package downloads. Host-qualified settings retain their host restrictions.
+Work-repository settings and saved logins are not changed. When
 `GH_HOST` selects an enterprise host, the installer ignores its `GH_TOKEN` and
 `GITHUB_TOKEN` and uses the saved public GitHub login for extensions.
 

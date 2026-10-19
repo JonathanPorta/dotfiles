@@ -2,7 +2,8 @@
 
 # Package sources live on public GitHub even when the login shell defaults to
 # enterprise GitHub. Use a private snapshot so nested Git processes inherit the
-# same routing, while proxies, certificate paths, and credentials remain usable.
+# same routing, while general proxy/CA settings and host-scoped credentials
+# remain usable. Never promote repository-conditional settings into this snapshot.
 # This helper is shared by the Bash bootstrap and the Zsh installers.
 public_github() (
   local config_dir scope entry key value public_prefix skip_rewrite original_umask
@@ -13,7 +14,21 @@ public_github() (
   trap 'exit 130' INT
   trap 'exit 143' TERM
 
-  git config --null --list --includes --show-scope >"$config_dir/source" || exit 1
+  (
+    # Evaluating includes in the caller's repo would turn its gitdir/onbranch
+    # credentials into unconditional global values. Read without a repository,
+    # including when TMPDIR is inside one or the caller exported Git selectors.
+    # GIT_CONFIG selects a file for `git config` only, not normal Git traffic.
+    unset GIT_DIR GIT_WORK_TREE GIT_COMMON_DIR GIT_CONFIG
+    cd "$config_dir" || exit 1
+    # Git ignores a ceiling equal to its starting directory; stop at its parent.
+    export GIT_CEILING_DIRECTORIES="$(dirname "$PWD")"
+    if git rev-parse --git-dir >/dev/null 2>&1; then
+      echo 'Cannot isolate public GitHub configuration from a repository.' >&2
+      exit 1
+    fi
+    git config --null --list --includes --show-scope
+  ) >"$config_dir/source" || exit 1
   : >"$config_dir/config"
   while IFS= read -r -d '' scope && IFS= read -r -d '' entry; do
     # Do not carry the caller's repository settings into newly cloned repos.

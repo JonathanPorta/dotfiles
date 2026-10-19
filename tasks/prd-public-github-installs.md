@@ -32,7 +32,8 @@ selected Python. Explain third-party tap trust without granting it automatically
 ## Approach
 
 Add a Bash/Zsh helper that runs a command with github.com selected and a private
-temporary Git configuration. Flatten system/global/command configuration and
+temporary Git configuration. Read system/global/command configuration without
+repository context, then flatten the resulting unconditional includes and
 omit URL rewrites that affect public GitHub and expanded include directives,
 retaining unrelated settings such as proxies and certificate paths. Scope the
 environment to a subshell and clean up
@@ -68,6 +69,10 @@ environments for virtualenv, pipenv, and Poetry.
   virtualenv, pipenv, and Poetry through isolated uv tools. No global/user pip
   installs or externally-managed protection bypasses are used.
 - AC-8: README explains Homebrew's third-party tap trust and explicit user options.
+- AC-9: Repository-conditional credentials must not become global package-download
+  settings. Read the snapshot with Git repository selectors cleared and discovery
+  bounded outside any repository, even when TMPDIR is inside the work checkout.
+  Preserve host-qualified credential settings without widening their host scope.
 
 No changes to work-repository remotes, persistent GitHub host defaults, or saved
 credentials are part of this feature. Live package installation is not required
@@ -78,6 +83,10 @@ for local validation; use real Git URL resolution and controlled command mocks.
 - `bash tests/test-public-github.sh`: real Git resolution in Bash/Zsh; system,
   global, included, and command settings; nested processes, original config and
   environment preservation, argument boundaries, cleanup, and failure status.
+  The F1 negative control uses a gitdir-conditional authorization canary and
+  credential helper, with TMPDIR inside that repo and explicit Git selectors.
+  Work-only credentials must be absent from the public child's effective and
+  generated global config; host-specific headers must stay on their own hosts.
 - `bash tests/test-installer-routing.sh`: screensaver install/skip/public-login
   hint; local and piped bootstrap, existing enterprise origin, download failure.
 - `bash tests/test-installer-packages.sh`: mixed/all-installed/missing packages,
