@@ -109,8 +109,8 @@ After `init.sh` completes, restart your shell and run `run.sh` (see below).
 
 | | |
 |---|---|
-| **Purpose** | Installs applications and dev tools: oh-my-zsh + plugins, vim, gpg, git-lfs, gh CLI, ruby, python, node, and more via Homebrew (macOS) or dnf (Fedora, dnf4 or dnf5). Warns when the Fedora release is past end of life. Re-runs symlinks first, then installs Claude and Codex agent-config fragments (using a `uv`-managed Python when the system one is older than 3.11). gh extensions are installed only once `gh auth login` has been run. |
-| **Idempotency** | **Safe to re-run.** Package managers skip already-installed packages, and oh-my-zsh, its plugins, and nvm are skipped when already present. Agent config is validated and only rewritten when the merged result changes. |
+| **Purpose** | Installs applications and dev tools: oh-my-zsh + plugins, vim, gpg, git-lfs, gh CLI, ruby, python, node, and more via Homebrew (macOS) or dnf (Fedora, dnf4 or dnf5). Warns when the Fedora release is past end of life. Re-runs symlinks first, then installs Claude and Codex agent-config fragments (using a `uv`-managed Python when the system one is older than 3.11). gh extensions require a public GitHub login: `gh auth login --hostname github.com`. |
+| **Idempotency** | **Safe to re-run.** The shared installer checks the Homebrew/RPM database and skips installed packages before invoking installation. oh-my-zsh, its plugins, nvm, and existing Python tools are skipped when already present. Agent config is validated and only rewritten when the merged result changes. |
 | **Destructive?** | Re-runs `symlink.sh` (same backup behavior as `init.sh`). Agent config preserves unrelated keys and creates one `*.pre-agent-config` recovery copy before its first change. |
 
 ```bash
@@ -118,6 +118,36 @@ zsh -lc "$HOME/devel/$USER/dotfiles/run.sh"
 ```
 
 > **Note:** `run.sh` expects to run under `zsh` with a login shell so that the full environment (Homebrew PATH, etc.) is available.
+
+### Work laptops and Python environments
+
+Public package operations in `init.sh` and the installers use `github.com`, even
+when `GH_HOST` or system/global Git URL rewrites select enterprise GitHub. A
+temporary Git configuration preserves proxy and certificate settings and rewrites
+for other hosts. Work-repository settings and saved logins are not changed. When
+`GH_HOST` selects an enterprise host, the installer ignores its `GH_TOKEN` and
+`GITHUB_TOKEN` and uses the saved public GitHub login for extensions.
+
+Python setup ignores inherited virtualenv/Conda paths in its own process. It
+reuses a Python 3.11+ interpreter when available, otherwise installs Python 3.12
+with uv. It reports the selected interpreter and installs `virtualenv`, `pipenv`,
+and `poetry` as isolated uv tools; no `pip --user` or externally-managed override
+is needed. Installed Homebrew packages, including `python-build` and `gh`, are
+skipped rather than reinstalled or upgraded.
+
+### Homebrew tap trust warnings
+
+Homebrew requires explicit trust for third-party taps. `hashicorp/tap` is
+[HashiCorp's official tap](https://github.com/hashicorp/homebrew-tap), but it is
+not an official Homebrew tap, so an existing checkout may still be untrusted.
+The same rule applies to internal taps such as `torbit/tb-cert`.
+
+To approve a specific formula, use (for example)
+`brew trust --formula hashicorp/tap/terraform`. If you intend to approve the
+entire tap, use `brew trust --tap hashicorp/tap` or
+`brew trust --tap torbit/tb-cert`. Whole-tap trust covers current and future
+formulae, casks, and commands. The installer does not grant trust automatically.
+See [Homebrew's tap trust documentation](https://docs.brew.sh/Tap-Trust).
 
 ---
 

@@ -89,14 +89,28 @@ if ! command -v git >/dev/null 2>&1; then
     fi
 fi
 
+# init.sh is also piped directly to Bash before a checkout exists.
+if [[ -n "${BASH_SOURCE[0]:-}" ]] &&
+   [[ -f "$(dirname "${BASH_SOURCE[0]}")/installation/include/public-github.sh" ]]; then
+  source "$(dirname "${BASH_SOURCE[0]}")/installation/include/public-github.sh"
+else
+  github_helper=$(mktemp)
+  trap 'rm -f "$github_helper"' EXIT
+  curl -fsSL --output "$github_helper" \
+    "https://raw.githubusercontent.com/${GH_USERNAME}/dotfiles/master/installation/include/public-github.sh"
+  source "$github_helper"
+  rm -f "$github_helper"
+  trap - EXIT
+fi
+
 echo "Ensuring a local checkout of github.com/${GH_USERNAME}/dotfiles exists and is where we expect it..."
 # if we already have the dotfiles repo cloned then lets fetch and nothing else. yolo
 if [ -d "$DOTFILES_CHECKOUT" ]; then
   cd $DOTFILES_CHECKOUT
-  git fetch
+  public_github git fetch "https://github.com/${GH_USERNAME}/dotfiles.git" '+refs/heads/*:refs/remotes/origin/*'
 # if we don't have the repo, let's clone it
 else
-  git clone https://github.com/${GH_USERNAME}/dotfiles.git $DOTFILES_CHECKOUT
+  public_github git clone "https://github.com/${GH_USERNAME}/dotfiles.git" "$DOTFILES_CHECKOUT"
 fi
 
 echo "Ensure symlink of '$HOME_DIR/dotfiles' points to '$DOTFILES_CHECKOUT/dotfiles'..."
@@ -126,7 +140,7 @@ if ! command -v jq >/dev/null 2>&1; then
             done
         fi
         if command -v brew >/dev/null 2>&1; then
-            brew install jq
+            public_github brew install jq
         else
             echo "Error: Homebrew is not installed. Install it from https://brew.sh/ and re-run this script."
             exit 1
