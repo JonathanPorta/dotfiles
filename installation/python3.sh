@@ -3,8 +3,22 @@
 set +e
 INSTALL_DIR=$(dirname "$0")
 source $INSTALLATION_SOURCE_DIR/include/lib.sh
-set -e
+set -eo pipefail
 
+# An installer is a child process: detach from the caller's Python environment
+# here without deactivating or changing their interactive shell.
+for python_env in "${VIRTUAL_ENV:-}" "${CONDA_PREFIX:-}"; do
+  [[ -n "$python_env" ]] || continue
+  echo_cyan "Ignoring active Python environment for setup: $python_env"
+  clean_path=()
+  for path_entry in "${path[@]}"; do
+    [[ "${path_entry%/}" == "${python_env%/}/bin" ]] || clean_path+=("$path_entry")
+  done
+  path=("${clean_path[@]}")
+done
+unset VIRTUAL_ENV VIRTUAL_ENV_PROMPT CONDA_PREFIX CONDA_DEFAULT_ENV CONDA_SHLVL PYTHONHOME PYTHONPATH
+# Find an existing user-installed uv before considering a fresh installation.
+export PATH="$HOME/.local/bin:$PATH"
 
 # Python3 and dev deps
 echo_green "Installing python3 requirements..."
@@ -23,35 +37,27 @@ if ! (exists uv); then
 else
   echo_cyan "uv is already installed. Skipping..."
 fi
-# uv and the tools it installs live here; a fresh install isn't on PATH yet.
-export PATH="$HOME/.local/bin:$PATH"
 
-
-if ! (exists virtualenv); then
-  echo_green "Installing virtualenv..."
-  pip3 install --user virtualenv
-  # pkg_install pyenv-virtualenv
-  echo_green "Done."
-else
-  echo_cyan "virtualenv is already installed. Skipping..."
+# Reuse a suitable interpreter, including an existing uv-managed Python. Match
+# the 3.11+ requirement of the agent-config step, ignoring project/venv selection.
+if ! tool_python=$(uv python find --system --no-project --no-python-downloads '>=3.11' 2>/dev/null); then
+  echo_green "No Python 3.11+ found outside a virtualenv. Installing with uv..."
+  uv python install 3.12
+  tool_python=$(uv python find --system --no-project --no-python-downloads 3.12)
 fi
+python_version=$("$tool_python" --version)
+echo_cyan "Using $python_version at $tool_python"
 
-if ! (exists pipenv); then
-  echo_green "Installing pipenv..."
-  pip3 install --user pipenv
-  echo_green "Done."
-else
-  echo_cyan "pipenv is already installed. Skipping..."
-fi
-
-if ! (exists poetry); then
-  echo_green "Installing poetry..."
-  uv tool install poetry
-  echo_green "Done."
-else
-  echo_cyan "poetry is already installed. Skipping..."
-fi
-
+# Python CLI tools belong in isolated environments, including on PEP 668 systems.
+for python_tool in virtualenv pipenv poetry; do
+  if exists "$python_tool"; then
+    echo_cyan "$python_tool is already installed. Skipping..."
+  else
+    echo_green "Installing $python_tool..."
+    uv tool install --python "$tool_python" "$python_tool"
+    echo_green "Done."
+  fi
+done
 
 
 # # conda

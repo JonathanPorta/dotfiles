@@ -10,7 +10,7 @@ source $INSTALLATION_SOURCE_DIR/include/lib.sh
 if [ ! -d "$HOME/.nvm" ]; then
   echo_green "Installing nvm..."
   NVM_DIR="$HOME/.nvm" && (
-    git clone https://github.com/nvm-sh/nvm.git "$NVM_DIR"
+    public_github git clone https://github.com/nvm-sh/nvm.git "$NVM_DIR"
     cd "$NVM_DIR"
     git checkout `git describe --abbrev=0 --tags --match "v[0-9]*" $(git rev-list --tags --max-count=1)`
   ) && \. "$NVM_DIR/nvm.sh"
@@ -36,7 +36,7 @@ if [ -d "$HOME/.nenv" ]; then
   echo_cyan "'$HOME/.nenv' already exists. Skipping..."
 else
   echo_green "Installing nenv..."
-  git clone https://github.com/ryuone/nenv.git $HOME/.nenv
+  public_github git clone https://github.com/ryuone/nenv.git "$HOME/.nenv"
   echo_green "Done."
 fi
 

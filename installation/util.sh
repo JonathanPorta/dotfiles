@@ -84,10 +84,11 @@ elif [[ $OS == 'darwin' ]]; then
 fi
 
 # gh cli extensions (these need a logged-in gh)
-if (exists gh) && gh auth status >/dev/null 2>&1; then
-  gh extension list | grep -q vilmibm/gh-screensaver || gh extension install vilmibm/gh-screensaver
+if (exists gh) && public_github gh auth status --hostname github.com >/dev/null 2>&1; then
+  public_github gh extension list | grep -q vilmibm/gh-screensaver || \
+    public_github gh extension install https://github.com/vilmibm/gh-screensaver
 else
-  echo_cyan "Skipping gh extensions: run 'gh auth login', then re-run this script."
+  echo_cyan "Skipping gh extensions: run 'gh auth login --hostname github.com', then re-run this script."
 fi
 
 # GPG is now installed via $INSTALLATION_SOURCE_DIR/gpg.sh

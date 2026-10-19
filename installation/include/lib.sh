@@ -2,6 +2,7 @@
 
 # Figure out best way to include this in all scripts, even when we don't know the path.
 source $(cd $(dirname "$0") && pwd)/vars.sh
+source "$INCLUDE_DIR/public-github.sh"
 # example we can use in other scripts to include this file:
 # source $(cd $(dirname "$0") && pwd)/lib.sh
 
@@ -13,12 +14,41 @@ export exists(){
   command -v "$1" >/dev/null 2>&1
 }
 
-# usage: pkg_installer pkg - runs pkg installer
+# Install only missing packages. Query the package database rather than command
+# names (neovim provides nvim, and macOS's /usr/bin/vim is not a brew install).
 export pkg_install(){
+  local package installed_versions package_count=0
+  local -a pending=()
+  while (( $# )); do
+    case "$1" in
+      --repo|--enablerepo|--disablerepo|--exclude)
+        # Preserve dnf option/value pairs without treating the value as a package.
+        (( $# >= 2 )) || return 2
+        pending+=("$1" "$2")
+        shift 2
+        continue
+        ;;
+      -*) pending+=("$1"); shift; continue ;;
+    esac
+    package="$1"
+    shift
+    if [[ $OS == 'darwin' ]] &&
+      installed_versions=$(brew list --formula --versions "$package" 2>/dev/null) &&
+      [[ -n "$installed_versions" ]]; then
+      echo_cyan "$package is already installed. Skipping..."
+    elif [[ $OS == 'linux' && "$package" != */* && "$package" != *.rpm ]] &&
+      rpm -q -- "$package" >/dev/null 2>&1; then
+      echo_cyan "$package is already installed. Skipping..."
+    else
+      pending+=("$package")
+      package_count=$((package_count + 1))
+    fi
+  done
+  (( package_count )) || return 0
   if [[ $OS == 'linux' ]]; then
-     sudo dnf install -y "$@"
+     sudo dnf install -y "${pending[@]}"
   elif [[ $OS == 'darwin' ]]; then
-     brew install "$@"
+     public_github brew install "${pending[@]}"
   fi
 }
 
