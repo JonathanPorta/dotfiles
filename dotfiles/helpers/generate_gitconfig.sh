@@ -1,7 +1,14 @@
 #!/usr/bin/env bash
 
-# copy-pasta'd from https://stackoverflow.com/a/42457815/555017
-SCRIPT_GENERATOR_PATH="$(cd $(dirname "$0") && pwd)/$(basename "$0")"
+# .profile sources this on every shell start, so it must not cd: in zsh even a
+# cd inside $(...) runs chpwd hooks, and spaceship's hook then fails with
+# "async_worker_eval: no such async worker: spaceship" before its worker starts.
+_gitconfig_generator="${BASH_SOURCE[0]:-$0}"
+case "$_gitconfig_generator" in
+  /*) SCRIPT_GENERATOR_PATH="$_gitconfig_generator" ;;
+  *) SCRIPT_GENERATOR_PATH="$PWD/${_gitconfig_generator#./}" ;;
+esac
+unset _gitconfig_generator
 echo "Generating $HOME/.gitconfig using $SCRIPT_GENERATOR_PATH..."
 
 cat <<EOF > $HOME/.gitconfig
