@@ -31,8 +31,8 @@ HYPHEN_INSENSITIVE="true"
 # Uncomment the following line to disable auto-setting terminal title.
 # DISABLE_AUTO_TITLE="true"
 
-# Uncomment the following line to enable command auto-correction.
-ENABLE_CORRECTION="true"
+# Disable Oh My Zsh command auto-correction.
+ENABLE_CORRECTION="false"
 
 # Uncomment the following line to display red dots whilst waiting for completion.
 COMPLETION_WAITING_DOTS="true"
@@ -131,5 +131,8 @@ if [[ -n "${CMUX_SHELL_INTEGRATION:-}${CMUX_TAB_ID:-}${CMUX_WORKSPACE_ID:-}" ]];
   _cmux_start_pr_poll_loop() { return 0; }
   typeset -g _CMUX_PR_POLL_INTERVAL=999999
 fi
+
+# Keep command and argument spelling correction disabled after all startup setup.
+unsetopt CORRECT CORRECT_ALL
 
 # zprof
