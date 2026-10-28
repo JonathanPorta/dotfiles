@@ -399,4 +399,6 @@ invalid_prrq=$(HOME="$status_home" \
 [ "$invalid_prrq" = "$status_base" ] || \
   fail "invalid prrq JSON changed the Claude status line"
 
-echo "PASS: agent config fragments merge safely and idempotently"
+python3 "$repo_root/tests/test-agent-instructions.py"
+
+echo "PASS: agent config and personal instructions merge safely and idempotently"
