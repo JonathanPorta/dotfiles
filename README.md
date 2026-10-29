@@ -232,8 +232,21 @@ or malformed/duplicate markers before applying any config changes. When Codex
 has a nonempty `~/.codex/AGENTS.override.md`, that active file receives the section
 instead of the base `AGENTS.md`.
 
-After pulling an update, run `bash installation/agent-config.sh` and start new
-Claude/Codex sessions. `init.sh` and `run.sh` also install the preferences.
+Both primary runners install these preferences automatically:
+
+- `init.sh` calls `installation/agent-config.sh` during bootstrap.
+- `run.sh` calls the same installer after installing developer tools.
+
+After pulling an update, use the normal configuration/setup command:
+
+```bash
+zsh -lc "$HOME/devel/$USER/dotfiles/run.sh"
+```
+
+Then start new Claude/Codex sessions. There is no separate agent-config step
+required. `bash installation/agent-config.sh` is also available when you want
+to refresh only the agent configuration.
+
 Additional profiles using other `CLAUDE_CONFIG_DIR` or `CODEX_HOME` paths need
 the preference installed in their own user instruction files; web chats and
 remote agents do not read these local files.
