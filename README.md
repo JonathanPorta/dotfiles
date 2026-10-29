@@ -162,6 +162,25 @@ See [Homebrew's tap trust documentation](https://docs.brew.sh/Tap-Trust).
 
 ## Agent configuration
 
+### Claude profiles
+
+The Zsh configuration provides three commands using the installed Claude CLI:
+
+| Command | Profile | Configuration directory |
+|---|---|---|
+| `claude` | Personal | Default (`~/.claude`, with `CLAUDE_CONFIG_DIR` unset) |
+| `claude-az` | Azimuth | `~/.claude-az` |
+| `claude-w` | Work | `~/.claude-w` |
+
+The alternate profiles start with their own settings, login, and session history.
+Claude creates their directories during first-run setup. After pulling changes,
+open a new shell or run `source ~/.zshrc`, then run `claude-w` and sign in.
+Project-level `.claude` configuration still applies when profiles use the same
+project. Both `init.sh` and `run.sh` install the aliases through the existing
+`.zshrc` symlink setup.
+
+### Managed settings
+
 `init.sh` and `run.sh` invoke `installation/agent-config.sh`. The wrapper selects
 an available Python 3.11+ interpreter (required for the standard-library TOML
 parser); if none is available, this optional step prints a deferral notice and

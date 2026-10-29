@@ -92,11 +92,12 @@ if [ -f "$HOME/.code-puppy-venv/bin/code-puppy" ]; then
   alias code-puppy="$HOME/.code-puppy-venv/bin/code-puppy"
 fi
 
-# Claude accounts: use the default login for personal work and a separate Azimuth login.
-# env prevents claude-az from expanding the primary claude alias.
+# Claude accounts: keep personal, Azimuth, and work profiles separate.
+# env prevents the profile aliases from expanding the primary claude alias.
 alias claude='env -u CLAUDE_CONFIG_DIR claude'
-# Claude creates this directory during first-run setup.
+# Claude creates these directories during first-run setup.
 alias claude-az='env CLAUDE_CONFIG_DIR="$HOME/.claude-az" claude'
+alias claude-w='env CLAUDE_CONFIG_DIR="$HOME/.claude-w" claude'
 
 # ----------------------------------------------------------------------------
 # Disable cmux's shell-side PR-status polling.
