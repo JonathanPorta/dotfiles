@@ -62,6 +62,13 @@ cat >"$test_home/.claude/settings.json" <<'JSON'
     "allow": ["Bash(git status:*)"]
   },
   "hooks": {
+    "SessionStart": [{
+      "matcher": "startup|resume",
+      "hooks": [
+        {"type": "command", "command": "keep-start", "timeout": 7},
+        {"type": "command", "command": "bash '/Users/example person/.claude/hooks/herdr-agent-state.sh' session", "timeout": 13}
+      ]
+    }],
     "Stop": [{"hooks": [{"type": "command", "command": "keep-me"}]}]
   },
   "statusLine": {
@@ -102,6 +109,14 @@ jq -e '.permissions.allow == ["Bash(git status:*)"]' \
   "$test_home/.claude/settings.json" >/dev/null
 jq -e '.hooks.Stop[0].hooks[0].command == "keep-me"' \
   "$test_home/.claude/settings.json" >/dev/null
+jq -e '.hooks.SessionStart == [{
+  "matcher": "startup|resume",
+  "hooks": [
+    {"type": "command", "command": "keep-start", "timeout": 7},
+    {"type": "command", "command": "bash \"$HOME/.claude/hooks/herdr-agent-state.sh\" session", "timeout": 13}
+  ]
+}]' "$test_home/.claude/settings.json" >/dev/null || \
+  fail "Herdr migration replaced a local SessionStart hook or its options"
 jq -e '.statusLine.command == "bash \"$HOME/.claude/statusline-command.sh\""' \
   "$test_home/.claude/settings.json" >/dev/null
 
@@ -140,6 +155,14 @@ grep -F '# preserve-this-comment' "$test_home/.codex/config.toml" >/dev/null
 grep -F 'local-renderer-that-must-be-backed-up' \
   "$test_home/.claude/statusline-command.sh.pre-agent-config" >/dev/null
 
+# Seed a regular copy, then leave Herdr's own future updates alone.
+herdr_hook="$test_home/.claude/hooks/herdr-agent-state.sh"
+[ -f "$herdr_hook" ] && [ ! -L "$herdr_hook" ] || \
+  fail "Herdr hook was not installed as a regular file"
+cmp "$repo_root/dotfiles/agent-config.d/claude/hooks/herdr-agent-state.sh" \
+  "$herdr_hook" || fail "installed Herdr hook differs from the supplied script"
+printf '%s\n' '# newer Herdr integration: keep this version' >"$herdr_hook"
+
 cp "$test_home/.claude/settings.json" "$test_root/claude-first.json"
 cp "$test_home/.codex/config.toml" "$test_root/codex-first.toml"
 HOME="$test_home" "$installer"
@@ -147,6 +170,9 @@ cmp "$test_root/claude-first.json" "$test_home/.claude/settings.json" || \
   fail "second run changed Claude settings"
 cmp "$test_root/codex-first.toml" "$test_home/.codex/config.toml" || \
   fail "second run changed Codex config"
+grep -Fx '# newer Herdr integration: keep this version' "$herdr_hook" >/dev/null || \
+  fail "second run overwrote Herdr's updated hook"
+[ ! -e "$herdr_hook.pre-agent-config" ] || fail "existing Herdr hook was backed up or replaced"
 
 # A missing [tui] table is appended without changing existing top-level data.
 no_tui_home="$test_root/no-tui-home"
@@ -198,6 +224,33 @@ HOME="$fresh_no_codex_home" PATH="$no_codex_path" PYTHON3_BIN="$python_bin" \
   /bin/bash "$installer" >/dev/null
 [ ! -e "$fresh_no_codex_home/.codex/config.toml" ] || \
   fail "missing Codex created a new Codex config"
+jq -e '.hooks.SessionStart == [{"matcher": "*", "hooks": [{
+  "type": "command",
+  "command": "bash \"$HOME/.claude/hooks/herdr-agent-state.sh\" session",
+  "timeout": 10
+}]}]' "$fresh_no_codex_home/.claude/settings.json" >/dev/null || \
+  fail "fresh install did not register the Herdr session hook"
+
+# Hook validation must happen before settings or assets are written.
+for invalid_hook_case in destination settings; do
+  hook_home="$test_root/invalid-hook-$invalid_hook_case"
+  mkdir -p "$hook_home/.claude"
+  if [ "$invalid_hook_case" = destination ]; then
+    mkdir -p "$hook_home/.claude/hooks/herdr-agent-state.sh"
+    printf '%s\n' '{"sentinel": "untouched"}' >"$hook_home/.claude/settings.json"
+  else
+    printf '%s\n' '{"hooks": {"SessionStart": "invalid"}}' >"$hook_home/.claude/settings.json"
+  fi
+  cp "$hook_home/.claude/settings.json" "$test_root/hook-before.json"
+  if HOME="$hook_home" "$installer" >/dev/null 2>&1; then
+    fail "installer accepted invalid Herdr $invalid_hook_case"
+  fi
+  cmp "$test_root/hook-before.json" "$hook_home/.claude/settings.json" || \
+    fail "invalid Herdr $invalid_hook_case caused settings writes"
+  [ ! -e "$hook_home/.codex/config.toml" ] || fail "invalid Herdr hook caused Codex writes"
+  [ ! -f "$hook_home/.claude/hooks/herdr-agent-state.sh" ] || \
+    fail "invalid hook settings still installed the Herdr script"
+done
 
 # Invalid inputs abort before either agent config is touched.
 invalid_home="$test_root/invalid-home"

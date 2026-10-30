@@ -234,6 +234,8 @@ dotfiles/agent-config.d/
 │   ├── 40-preferences.json
 │   ├── 50-status-line.json
 │   ├── 60-voice.json
+│   ├── hooks/
+│   │   └── herdr-agent-state.sh
 │   └── statusline-command.sh
 ├── claude-work/
 │   └── 90-privacy.json
@@ -256,10 +258,19 @@ dotfiles/agent-config.d/
   Context-pressure breadcrumbs use the stable
   `~/.local/state/claude-statusline/claude-ctx-<project-hash>.breadcrumb` reader
   contract inside a mode-`0700` directory; each breadcrumb is mode `0600`.
-  The exported Herdr SessionStart hook remains locally managed: its referenced
-  `~/.claude/hooks/herdr-agent-state.sh` was not supplied, so the installer
-  preserves existing hooks without distributing an unavailable script or a
-  machine-specific `/Users/portaj` path.
+- The supplied Herdr integration (version 7) is copied to
+  `~/.claude/hooks/herdr-agent-state.sh` only when that file is missing.
+  Existing installations, including subsequent Herdr updates, are preserved;
+  the copy is not a symlink back into this repo. The installer registers the
+  primary profile's SessionStart hook with a quoted `$HOME` path, migrates a
+  previous plain Herdr command in place, and preserves other hooks, matchers,
+  and timeouts. Re-running setup does not add a duplicate registration.
+  Hook settings and the destination are checked before any config is written;
+  invalid hook structure or a non-file destination aborts the run.
+  The script is inactive outside Herdr. Inside Herdr it reports session ID,
+  transcript path, and startup source through Herdr's local Unix socket; it
+  does not read transcript contents or contact Anthropic. Subagent events are
+  ignored. The Azimuth and work profiles keep their own hook configuration.
 - Codex TOML fragments support a deliberately narrow allowlist:
   `tui.status_line`, `tui.notifications`, and `tui.notification_condition`.
   The installer updates only those keys inside the existing `[tui]` table while
