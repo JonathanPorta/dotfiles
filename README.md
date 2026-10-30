@@ -205,10 +205,51 @@ dotfiles/agent-config.d/
   session logs.
 
 Before any selected config is written, existing configs, fragments, and the
-renderer replacement/backup path are preflighted. Invalid JSON/TOML, a symlinked
-config, or an unsafe renderer backup conflict aborts the run without partial
-writes. The first changed version is copied to
+renderer replacement/backup path are preflighted, along with the personal
+instruction files below. Invalid JSON/TOML, a symlinked config or instruction
+file, malformed instruction markers, or an unsafe renderer backup conflict
+aborts the run before writes. The first changed version is copied to
 `*.pre-agent-config`; subsequent identical runs perform no writes.
+
+### Personal assistant instructions
+
+`dotfiles/agent-config.d/personal-instructions.md` holds Jonathan Porta's personal
+preferences, including his preferred form of address: **Supreme Commander**.
+The instruction names Jonathan specifically; it does not assign the title to
+other people. It is installed into user-level files so it follows his local
+sessions across projects without changing the shared `.ai-rules` contract.
+
+| Profile | Instruction file |
+|---|---|
+| Claude | `~/.claude/CLAUDE.md` |
+| Claude Azimuth (`claude-az`) | `~/.claude-az/CLAUDE.md` |
+| Codex, when installed | `~/.codex/AGENTS.md` |
+
+The installer appends or updates one marked section, preserving all text outside
+it, existing line endings, and file permissions. It backs up an existing file
+once to `*.pre-agent-config` and refuses symlinks, non-file targets, invalid UTF-8,
+or malformed/duplicate markers before applying any config changes. When Codex
+has a nonempty `~/.codex/AGENTS.override.md`, that active file receives the section
+instead of the base `AGENTS.md`.
+
+Both primary runners install these preferences automatically:
+
+- `init.sh` calls `installation/agent-config.sh` during bootstrap.
+- `run.sh` calls the same installer after installing developer tools.
+
+After pulling an update, use the normal configuration/setup command:
+
+```bash
+zsh -lc "$HOME/devel/$USER/dotfiles/run.sh"
+```
+
+Then start new Claude/Codex sessions. There is no separate agent-config step
+required. `bash installation/agent-config.sh` is also available when you want
+to refresh only the agent configuration.
+
+Additional profiles using other `CLAUDE_CONFIG_DIR` or `CODEX_HOME` paths need
+the preference installed in their own user instruction files; web chats and
+remote agents do not read these local files.
 
 Run the preservation and idempotency test with:
 

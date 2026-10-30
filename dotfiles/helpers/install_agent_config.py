@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Install Claude and Codex config.d fragments without replacing user config."""
+"""Merge Claude/Codex config and personal instructions into user-level files."""
 
 from __future__ import annotations
 
@@ -259,6 +259,41 @@ def plan_codex_config(home: Path, fragments_dir: Path) -> tuple[Path, str]:
     return target, merged
 
 
+INSTRUCTIONS_BEGIN = "<!-- dotfiles:personal-instructions:start -->"
+INSTRUCTIONS_END = "<!-- dotfiles:personal-instructions:end -->"
+
+
+def read_utf8(path: Path) -> str:
+    """Read Markdown without normalizing the user's existing line endings."""
+    try:
+        return path.read_bytes().decode("utf-8")
+    except (OSError, UnicodeError) as exc:
+        raise SafetyError(f"cannot read instructions {path} as UTF-8: {exc}") from exc
+
+
+def plan_personal_instructions(target: Path, instructions: str) -> tuple[Path, str]:
+    require_regular_target(target)
+    require_regular_target(target.with_name(target.name + ".pre-agent-config"))
+    original = read_utf8(target) if target.exists() else ""
+    block = f"{INSTRUCTIONS_BEGIN}\n{instructions}\n{INSTRUCTIONS_END}"
+    begin_count = original.count(INSTRUCTIONS_BEGIN)
+    end_count = original.count(INSTRUCTIONS_END)
+    if begin_count == end_count == 0:
+        separator = "" if not original or original.endswith("\n\n") else (
+            "\n" if original.endswith("\n") else "\n\n"
+        )
+        return target, original + separator + block + "\n"
+
+    match = re.search(
+        rf"^{re.escape(INSTRUCTIONS_BEGIN)}\r?\n.*?^{re.escape(INSTRUCTIONS_END)}(?=\r?$)",
+        original,
+        re.MULTILINE | re.DOTALL,
+    )
+    if begin_count != 1 or end_count != 1 or match is None:
+        raise SafetyError(f"malformed or duplicate personal instruction markers in {target}")
+    return target, original[:match.start()] + block + original[match.end():]
+
+
 def backup_once(path: Path) -> None:
     if not path.exists():
         return
@@ -268,8 +303,9 @@ def backup_once(path: Path) -> None:
 
 
 def atomic_write(path: Path, content: str) -> bool:
-    old_content = path.read_text(encoding="utf-8") if path.exists() else None
-    if old_content == content:
+    encoded = content.encode("utf-8")
+    old_content = path.read_bytes() if path.exists() else None
+    if old_content == encoded:
         return False
 
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -278,8 +314,8 @@ def atomic_write(path: Path, content: str) -> bool:
     handle, temporary_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
     temporary = Path(temporary_name)
     try:
-        with os.fdopen(handle, "w", encoding="utf-8") as output:
-            output.write(content)
+        with os.fdopen(handle, "wb") as output:
+            output.write(encoded)
             output.flush()
             os.fsync(output.fileno())
         os.chmod(temporary, mode)
@@ -362,9 +398,30 @@ def main() -> int:
         args.home / ".claude" / "statusline-command.sh",
     )
 
+    instructions = read_utf8(fragments_root / "personal-instructions.md").strip()
+    if not instructions or any(
+        marker in instructions for marker in (INSTRUCTIONS_BEGIN, INSTRUCTIONS_END)
+    ):
+        raise SafetyError("personal-instructions.md must be nonempty and contain no managed markers")
+    instruction_targets = [
+        args.home / ".claude" / "CLAUDE.md",
+        args.home / ".claude-az" / "CLAUDE.md",
+    ]
+    if codex_plan is not None:
+        override = args.home / ".codex" / "AGENTS.override.md"
+        require_regular_target(override)
+        instruction_targets.append(
+            override if override.exists() and read_utf8(override).strip()
+            else args.home / ".codex" / "AGENTS.md"
+        )
+    instruction_plans = [
+        plan_personal_instructions(target, instructions) for target in instruction_targets
+    ]
+
     claude_changed = atomic_write(claude_target, claude_content)
     codex_changed = atomic_write(*codex_plan) if codex_plan is not None else None
     renderer_changed = apply_symlink(renderer_plan)
+    instructions_changed = sum(atomic_write(*plan) for plan in instruction_plans)
 
     if codex_changed is None:
         codex_result = "skipped (not installed)"
@@ -375,7 +432,8 @@ def main() -> int:
         "Agent config: "
         f"Claude {'updated' if claude_changed else 'unchanged'}, "
         f"Codex {codex_result}, "
-        f"renderer {'linked' if renderer_changed else 'unchanged'}."
+        f"renderer {'linked' if renderer_changed else 'unchanged'}, "
+        f"personal instructions {instructions_changed} updated."
     )
     return 0
 
