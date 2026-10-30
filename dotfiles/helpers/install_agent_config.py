@@ -9,6 +9,7 @@ import json
 import os
 from pathlib import Path
 import re
+import shlex
 import shutil
 import stat
 import tempfile
@@ -50,6 +51,82 @@ def read_json_object(path: Path, *, label: str) -> dict[str, Any]:
     return value
 
 
+HERDR_SESSION_COMMAND = 'bash "$HOME/.claude/hooks/herdr-agent-state.sh" session'
+
+
+def configure_herdr_session(settings: dict[str, Any]) -> None:
+    """Register Herdr without replacing another SessionStart hook or matcher."""
+    hooks = settings.setdefault("hooks", {})
+    if not isinstance(hooks, dict):
+        raise SafetyError("Claude hooks must be an object")
+    groups = hooks.setdefault("SessionStart", [])
+    if not isinstance(groups, list):
+        raise SafetyError("Claude SessionStart hooks must be an array")
+
+    found = False
+    for group in groups:
+        if not isinstance(group, dict) or not isinstance(group.get("hooks"), list):
+            raise SafetyError("Claude SessionStart entries must contain a hooks array")
+        for hook in group["hooks"]:
+            if not isinstance(hook, dict):
+                raise SafetyError("Claude SessionStart hooks must be objects")
+            if hook.get("type") != "command" or not isinstance(hook.get("command"), str):
+                continue
+            try:
+                command = shlex.split(hook["command"])
+            except ValueError:
+                continue
+            # Only migrate the plain invocation exported by Herdr. Leave custom
+            # shell expressions and other hooks untouched, including their order.
+            if (
+                len(command) == 3
+                and command[0] in {"bash", "sh", "/bin/bash", "/bin/sh"}
+                and command[1].endswith("/.claude/hooks/herdr-agent-state.sh")
+                and command[2] == "session"
+            ):
+                hook["command"] = HERDR_SESSION_COMMAND
+                found = True
+
+    if not found:
+        groups.append({
+            "matcher": "*",
+            "hooks": [{"type": "command", "command": HERDR_SESSION_COMMAND, "timeout": 10}],
+        })
+
+
+def plan_herdr_script(home: Path, fragments_dir: Path) -> tuple[Path, bytes] | None:
+    """Seed the supplied integration only when Herdr has not installed one."""
+    target = home / ".claude" / "hooks" / "herdr-agent-state.sh"
+    if target.is_file():
+        return None
+    if os.path.lexists(target):
+        raise SafetyError(f"Herdr hook must be a readable file: {target}")
+    if os.path.lexists(target.parent) and not target.parent.is_dir():
+        raise SafetyError(f"Herdr hooks path must be a directory: {target.parent}")
+    source = fragments_dir / "hooks" / "herdr-agent-state.sh"
+    try:
+        return target, source.read_bytes()
+    except OSError as exc:
+        raise SafetyError(f"cannot read Herdr hook source {source}: {exc}") from exc
+
+
+def install_herdr_script(plan: tuple[Path, bytes] | None) -> None:
+    if plan is None:
+        return
+    target, content = plan
+    target.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        # Herdr owns this file after installation. Never symlink into the repo
+        # or overwrite a version installed or updated by Herdr itself.
+        descriptor = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    except FileExistsError:
+        if target.is_file():
+            return
+        raise SafetyError(f"Herdr hook must be a readable file: {target}")
+    with os.fdopen(descriptor, "wb") as output:
+        output.write(content)
+
+
 def plan_claude_config(home: Path, fragments_dir: Path) -> tuple[Path, str]:
     target = home / ".claude" / "settings.json"
     require_regular_target(target)
@@ -66,6 +143,7 @@ def plan_claude_config(home: Path, fragments_dir: Path) -> tuple[Path, str]:
         fragment = read_json_object(fragment_path, label="Claude config fragment")
         merged = deep_merge(merged, fragment)
 
+    configure_herdr_session(merged)
     return target, json.dumps(merged, indent=2, ensure_ascii=False) + "\n"
 
 
@@ -387,6 +465,7 @@ def main() -> int:
     fragments_root = args.dotfiles_dir / "agent-config.d"
 
     # Plan and validate every config before modifying any of them.
+    herdr_plan = plan_herdr_script(args.home, fragments_root / "claude")
     claude_target, claude_content = plan_claude_config(
         args.home, fragments_root / "claude"
     )
@@ -420,6 +499,7 @@ def main() -> int:
 
     claude_changed = atomic_write(claude_target, claude_content)
     codex_changed = atomic_write(*codex_plan) if codex_plan is not None else None
+    install_herdr_script(herdr_plan)
     renderer_changed = apply_symlink(renderer_plan)
     instructions_changed = sum(atomic_write(*plan) for plan in instruction_plans)
 
