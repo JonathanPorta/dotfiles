@@ -1,0 +1,47 @@
+{
+  "permissions": {
+    "defaultMode": "auto"
+  },
+  "model": "opus",
+  "skillOverrides": {
+    "hyperframes": "off",
+    "hyperframes-animation": "off",
+    "hyperframes-cli": "off",
+    "hyperframes-core": "off",
+    "hyperframes-creative": "off",
+    "hyperframes-keyframes": "off",
+    "hyperframes-registry": "off",
+    "media-use": "off"
+  },
+  "enabledPlugins": {
+    "frontend-design@claude-plugins-official": true,
+    "swift-lsp@claude-plugins-official": false,
+    "cc-plugin-you-should-know@builtin": true
+  },
+  "feedbackDrafts": "notify",
+  "effortLevel": "low",
+  "modelSettings": {
+    "claude-opus-5": {
+      "effortLevel": "medium"
+    },
+    "claude-opus-5-5": {
+      "effortLevel": "medium"
+    }
+  },
+  "advisorModel": "fable",
+  "dialogExpiry": "never",
+  "timeFormat": "24-hour",
+  "skipDangerousModePermissionPrompt": true,
+  "skipWorkflowUsageWarning": true,
+  "theme": "dark",
+  "editorMode": "normal",
+  "switchModelsOnFlag": false,
+  "autoContinueAtUsageLimit": false,
+  "fileCheckpointingEnabled": false,
+  "crossSessionInbound": "accept",
+  "inputNeededNotifEnabled": true,
+  "agentPushNotifEnabled": true,
+  "skipAutoPermissionPrompt": true,
+  "voiceEnabled": true,
+  "defaultMode": "auto"
+}

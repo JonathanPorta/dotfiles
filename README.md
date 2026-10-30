@@ -179,6 +179,45 @@ Project-level `.claude` configuration still applies when profiles use the same
 project. Both `init.sh` and `run.sh` install the aliases through the existing
 `.zshrc` symlink setup.
 
+### Work profile privacy
+
+`claude-w` sets privacy environment variables before Claude starts and loads
+`dotfiles/agent-config.d/claude-work/90-privacy.json` with `--settings` on every
+launch. The existing `$HOME/dotfiles` symlink makes this file available after
+normal setup; it does not need a second installer or a copied settings file.
+These command-line settings override ordinary project and user settings;
+organization-managed settings still take precedence. Use the `claude-w` command
+to load this policy; setting `CLAUDE_CONFIG_DIR` alone does not load the overlay.
+
+| Control | Work-profile behavior |
+|---|---|
+| `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1` | Disables optional telemetry, error reports, feedback submissions, update checks, and other nonessential traffic. |
+| `CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY=1` | Explicitly disables session quality surveys, including an inherited OpenTelemetry survey opt-in. |
+| `CLAUDE_CODE_DISABLE_OFFICIAL_MARKETPLACE_AUTOINSTALL=1` | Prevents automatic official marketplace registration on first launch. It does not remove existing plugins or marketplaces. |
+| `skipWebFetchPreflight: true` | Stops sending hostnames to Anthropic's safety blocklist service. This removes that blocklist check; ordinary tool permissions still apply. |
+| Feedback drafts, mobile push, and automatic Remote Control | Disabled. |
+| Prompt suggestions and session recaps | Disabled to avoid their optional background model requests. |
+
+The broad traffic switch also disables feature-flag fetching, making Remote
+Control, advisor access, account skill/plugin sync, and some other features
+unavailable. See Anthropic's [data usage](https://code.claude.com/docs/en/data-usage)
+and [environment variable](https://code.claude.com/docs/en/env-vars) references.
+The installed CLI binary is shared by all three profiles; normal personal
+sessions can still update it.
+
+For a Free, Pro, or Max account, sign into the account used by `claude-w` at
+[Claude privacy settings](https://claude.ai/settings/data-privacy-controls) and
+turn **Help Improve our AI models** off. This account-level control cannot be
+set by these dotfiles. Commercial accounts have different training defaults;
+confirm the organization's policy and any model-improvement opt-ins.
+
+This is not zero data retention. Prompts, model context, and tool results still
+go to the configured model provider, and server retention follows the account's
+terms. It also does not constrain arbitrary network activity by installed
+plugins, MCP servers, hooks, or commands. See the
+[model-improvement controls](https://privacy.claude.com/en/articles/12109829-how-do-i-change-my-model-improvement-privacy-settings)
+and [retention policies](https://code.claude.com/docs/en/data-usage#data-retention).
+
 ### Managed settings
 
 `init.sh` and `run.sh` invoke `installation/agent-config.sh`. The wrapper selects
@@ -192,15 +231,24 @@ though the agent CLIs do not natively load config directories:
 ```text
 dotfiles/agent-config.d/
 ├── claude/
+│   ├── 40-preferences.json
 │   ├── 50-status-line.json
+│   ├── 60-voice.json
 │   └── statusline-command.sh
+├── claude-work/
+│   └── 90-privacy.json
 └── codex/
     ├── 50-status-line.toml
     └── 60-notifications.toml
 ```
 
 - Claude JSON fragments are deep-merged into `~/.claude/settings.json`; keys
-  not named by a fragment are retained. The renderer is symlinked to
+  not named by a fragment are retained. `40-preferences.json` tracks Jonathan's
+  personal model, effort, permissions, plugin/skill choices, notification,
+  interface, and session preferences. These personal defaults apply to the
+  primary profile; the other profiles keep their own settings. The existing
+  voice and status-line fragments retain the corresponding exported settings.
+  The renderer is symlinked to
   `~/.claude/statusline-command.sh`. Its queue rollup depends on
   [`prrq#45`](https://github.com/JonathanPorta/prrq/pull/45) and consumes
   `prrq summary --json`; when `prrq` is missing or predates that command, the
@@ -208,6 +256,10 @@ dotfiles/agent-config.d/
   Context-pressure breadcrumbs use the stable
   `~/.local/state/claude-statusline/claude-ctx-<project-hash>.breadcrumb` reader
   contract inside a mode-`0700` directory; each breadcrumb is mode `0600`.
+  The exported Herdr SessionStart hook remains locally managed: its referenced
+  `~/.claude/hooks/herdr-agent-state.sh` was not supplied, so the installer
+  preserves existing hooks without distributing an unavailable script or a
+  machine-specific `/Users/portaj` path.
 - Codex TOML fragments support a deliberately narrow allowlist:
   `tui.status_line`, `tui.notifications`, and `tui.notification_condition`.
   The installer updates only those keys inside the existing `[tui]` table while
