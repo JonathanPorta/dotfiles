@@ -176,8 +176,35 @@ The alternate profiles start with their own settings, login, and session history
 Claude creates their directories during first-run setup. After pulling changes,
 open a new shell or run `source ~/.zshrc`, then run `claude-w` and sign in.
 Project-level `.claude` configuration still applies when profiles use the same
-project. Both `init.sh` and `run.sh` install the aliases through the existing
+project. Both `init.sh` and `run.sh` install these commands through the existing
 `.zshrc` symlink setup.
+
+### Session names in cmux
+
+Inside a cmux workspace, `claude` and `claude-az` name the session after the
+workspace: `pmcp-00`, then `pmcp-01` for a second session running at the same
+time. The name is the workspace title as shown in the cmux sidebar, with `/`
+turned into `-` (`PR Console-00`, `CI-CD-00`); a workspace that cmux titled
+itself uses its folder name. Each launch takes the lowest number that no live
+session in any Claude profile holds, so a number is reused once its session
+exits.
+
+The functions live in `dotfiles/claude-names.zsh`. They run once, at launch: one
+`cmux workspace list` call and a read of the profiles' `sessions/*.json` files.
+There is no hook, background process, or model request, and nothing enforces
+the name afterward. Two sessions started at the same instant can get the same
+number.
+
+These launches keep Claude's default name:
+
+- the `Scratch` workspace, which holds unrelated one-off work
+- shells outside cmux, or when the workspace cannot be found
+- an explicit `-n`/`--name`, a resume (`-r`, `-c`, `--from-pr`, `--session-id`),
+  print mode (`-p`), and subcommands such as `claude mcp`
+- sessions that cmux restores or starts itself, which bypass the shell
+- `claude-w`, which is unchanged
+
+Set `CLAUDE_NAMES_DRY_RUN=1` to print the command instead of running it.
 
 ### Work profile privacy
 
