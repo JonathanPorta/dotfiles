@@ -105,8 +105,14 @@ HOME="$test_home" "$installer"
 
 jq -e '.sentinel == "claude-settings-survived"' \
   "$test_home/.claude/settings.json" >/dev/null
-jq -e '.permissions.allow == ["Bash(git status:*)"]' \
-  "$test_home/.claude/settings.json" >/dev/null
+jq -e '.permissions.allow[0] == "Bash(git status:*)"' \
+  "$test_home/.claude/settings.json" >/dev/null || \
+  fail "profile-shared permission rules replaced the local allow list instead of adding to it"
+jq -e '(.permissions.allow | index("Bash(prrq:*)")) != null and
+       (.permissions.deny | index("Bash(git push --force:*)")) != null and
+       .autoMode.allow[0] == "$defaults"' \
+  "$test_home/.claude/settings.json" >/dev/null || \
+  fail "publication grant (claude-profiles/45-publication.json) missing from ~/.claude/settings.json"
 jq -e '.hooks.Stop[0].hooks[0].command == "keep-me"' \
   "$test_home/.claude/settings.json" >/dev/null
 jq -e '.hooks.SessionStart == [{
