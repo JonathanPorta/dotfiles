@@ -535,6 +535,22 @@ def _dangling(path: Path) -> bool:
     return path.is_symlink() and not path.exists()
 
 
+def incompatible_instruction_parent(home: Path, target: Path) -> Path | None:
+    """Return the ancestor of ``target`` (below ``home``) that is not a real directory.
+
+    An instruction file's parent is created on demand, so a profile root that exists
+    as a regular file, a dangling symlink or a symlink to a file would make the write
+    fail after earlier configs changed. Such a profile is skipped before any write,
+    and the user's entry is left exactly as it is.
+    """
+    ancestor = target.parent
+    while ancestor != home and home in ancestor.parents:
+        if os.path.lexists(ancestor) and not (ancestor.is_dir() and not _dangling(ancestor)):
+            return ancestor
+        ancestor = ancestor.parent
+    return None
+
+
 def apply_skill_link(plan: tuple[Path, Path, str]) -> bool:
     source, destination, action = plan
     if action == "skip-client":
@@ -586,8 +602,15 @@ def main() -> int:
             override if override.exists() and read_utf8(override).strip()
             else args.home / ".codex" / "AGENTS.md"
         )
+    writable_targets = []
+    for target in instruction_targets:
+        blocker = incompatible_instruction_parent(args.home, target)
+        if blocker is not None:
+            print(f"note: {blocker} is not a directory; personal instructions not written to {target}")
+            continue
+        writable_targets.append(target)
     instruction_plans = [
-        plan_personal_instructions(target, instructions) for target in instruction_targets
+        plan_personal_instructions(target, instructions) for target in writable_targets
     ]
 
     claude_changed = atomic_write(claude_target, claude_content)

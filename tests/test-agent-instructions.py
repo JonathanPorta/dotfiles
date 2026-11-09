@@ -161,6 +161,30 @@ class PersonalInstructionsTests(unittest.TestCase):
         self.assertNotIn("Traceback", result.stderr)
         self.assertEqual(root.read_bytes(), b"i am a file\n")
 
+    def test_an_instruction_profile_root_that_is_not_a_directory_is_skipped_before_any_write(self):
+        for shape in ("regular-file", "dangling-link", "file-link"):
+            with self.subTest(shape=shape):
+                home = self.root / f"home-root-{shape}"
+                self.write(".claude/settings.json", b"{}\n", home)
+                root = home / ".claude-w"
+                if shape == "regular-file":
+                    root.write_bytes(b"not a directory\n")
+                elif shape == "dangling-link":
+                    root.symlink_to(home / "nowhere")
+                else:
+                    (home / "afile").write_bytes(b"x\n")
+                    root.symlink_to(home / "afile")
+                before = root.read_bytes() if root.is_file() else os.readlink(root)
+                result = self.install_ok(user_home=home)
+                self.assertNotIn("Traceback", result.stderr)
+                self.assertIn("personal instructions not written", result.stdout)
+                self.assertIn(".claude-w", result.stdout)
+                after = root.read_bytes() if root.is_file() else os.readlink(root)
+                self.assertEqual(before, after)
+                self.assertFalse((home / ".claude-w/CLAUDE.md").exists())
+                for relative in (".claude/CLAUDE.md", ".claude-az/CLAUDE.md"):
+                    self.assertIn("**Supreme Commander**", (home / relative).read_text())
+
     def test_existing_text_backup_mode_and_rerun_are_preserved(self):
         originals = {}
         for index, relative in enumerate(TARGETS):
