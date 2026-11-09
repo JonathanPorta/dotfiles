@@ -76,6 +76,9 @@ class PersonalInstructionsTests(unittest.TestCase):
                 self.assertIn("wt.sh start", block)
                 self.assertIn("scratch-setup.sh", block)
                 self.assertIn("prrq where", block)
+                self.assertIn("prrq add <pr-url>", block)
+                self.assertIn("Use PRRQ", block)
+                self.assertIn("Use the `ai-scratch` skill", block)
                 # the personal preference still comes first
                 self.assertLess(block.index("Supreme Commander"), block.index("Workspace Layout"))
 
