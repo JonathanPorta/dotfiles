@@ -453,6 +453,79 @@ def apply_symlink(plan: tuple[Path, Path, str, Path | None]) -> bool:
     return True
 
 
+# Every Claude Code profile on this machine; each gets the same managed block.
+CLAUDE_PROFILES = (".claude", ".claude-az", ".claude-w")
+
+# The managed instruction block is these fragments, in this order.
+INSTRUCTION_FRAGMENTS = ("personal-instructions.md", "workspace-policy.md")
+
+# Skills installed once under ~/.claude/skills and linked into every other client,
+# so one checkout (ai-skills, prrq) serves every agent. Source missing: skipped.
+SHARED_SKILLS = ("ai-scratch", "tracker", "prrq", "recon")
+SKILL_CLIENT_DIRS = (
+    ".claude-az/skills",
+    ".claude-w/skills",
+    ".agents/skills",
+    ".codex/skills",
+    ".gemini/skills",
+    ".config/opencode/skills",
+    ".copilot/skills",
+)
+
+
+def read_instruction_fragments(fragments_root: Path) -> str:
+    parts = []
+    for name in INSTRUCTION_FRAGMENTS:
+        text = read_utf8(fragments_root / name).strip()
+        if not text or any(marker in text for marker in (INSTRUCTIONS_BEGIN, INSTRUCTIONS_END)):
+            raise SafetyError(f"{name} must be nonempty and contain no managed markers")
+        parts.append(text)
+    return "\n\n".join(parts)
+
+
+def plan_shared_skill_links(
+    home: Path, *, codex_installed: bool
+) -> list[tuple[Path, Path, str]]:
+    """Plan symlinks for shared skills; never replace anything that already exists."""
+    plans: list[tuple[Path, Path, str]] = []
+    for relative in SKILL_CLIENT_DIRS:
+        client_root = home / Path(relative).parts[0]
+        if relative.startswith(".codex/") and not codex_installed:
+            continue
+        if relative.startswith(".config/"):
+            client_root = home / ".config" / Path(relative).parts[1]
+        if client_root.name not in {".claude-az", ".claude-w"} and not client_root.is_dir():
+            continue
+        for skill in SHARED_SKILLS:
+            source = home / ".claude" / "skills" / skill
+            if not source.exists():
+                continue
+            resolved = source.resolve()
+            destination = home / relative / skill
+            if destination.is_symlink():
+                try:
+                    same = destination.resolve() == resolved
+                except OSError:
+                    same = False
+                plans.append((resolved, destination, "unchanged" if same else "kept"))
+            elif os.path.lexists(destination):
+                plans.append((resolved, destination, "kept"))
+            else:
+                plans.append((resolved, destination, "link"))
+    return plans
+
+
+def apply_skill_link(plan: tuple[Path, Path, str]) -> bool:
+    source, destination, action = plan
+    if action != "link":
+        if action == "kept":
+            print(f"note: {destination} exists and is not the shared skill; left as is")
+        return False
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.symlink_to(source)
+    return True
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--dotfiles-dir", type=Path, required=True)
@@ -477,15 +550,12 @@ def main() -> int:
         args.home / ".claude" / "statusline-command.sh",
     )
 
-    instructions = read_utf8(fragments_root / "personal-instructions.md").strip()
-    if not instructions or any(
-        marker in instructions for marker in (INSTRUCTIONS_BEGIN, INSTRUCTIONS_END)
-    ):
-        raise SafetyError("personal-instructions.md must be nonempty and contain no managed markers")
+    instructions = read_instruction_fragments(fragments_root)
     instruction_targets = [
-        args.home / ".claude" / "CLAUDE.md",
-        args.home / ".claude-az" / "CLAUDE.md",
+        args.home / profile / "CLAUDE.md" for profile in CLAUDE_PROFILES
     ]
+    if (args.home / ".gemini").is_dir():
+        instruction_targets.append(args.home / ".gemini" / "GEMINI.md")
     if codex_plan is not None:
         override = args.home / ".codex" / "AGENTS.override.md"
         require_regular_target(override)
@@ -501,7 +571,10 @@ def main() -> int:
     codex_changed = atomic_write(*codex_plan) if codex_plan is not None else None
     install_herdr_script(herdr_plan)
     renderer_changed = apply_symlink(renderer_plan)
+    skill_plans = plan_shared_skill_links(args.home, codex_installed=codex_plan is not None)
+
     instructions_changed = sum(atomic_write(*plan) for plan in instruction_plans)
+    skills_linked = sum(apply_skill_link(plan) for plan in skill_plans)
 
     if codex_changed is None:
         codex_result = "skipped (not installed)"
@@ -513,7 +586,8 @@ def main() -> int:
         f"Claude {'updated' if claude_changed else 'unchanged'}, "
         f"Codex {codex_result}, "
         f"renderer {'linked' if renderer_changed else 'unchanged'}, "
-        f"personal instructions {instructions_changed} updated."
+        f"personal instructions {instructions_changed} updated, "
+        f"shared skill links {skills_linked} created."
     )
     return 0
 

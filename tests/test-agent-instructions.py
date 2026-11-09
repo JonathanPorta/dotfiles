@@ -14,7 +14,7 @@ import unittest
 REPO = Path(__file__).resolve().parents[1]
 BEGIN = "<!-- dotfiles:personal-instructions:start -->"
 END = "<!-- dotfiles:personal-instructions:end -->"
-TARGETS = (".claude/CLAUDE.md", ".claude-az/CLAUDE.md", ".codex/AGENTS.md")
+TARGETS = (".claude/CLAUDE.md", ".claude-az/CLAUDE.md", ".claude-w/CLAUDE.md", ".codex/AGENTS.md")
 
 
 class PersonalInstructionsTests(unittest.TestCase):
@@ -64,6 +64,54 @@ class PersonalInstructionsTests(unittest.TestCase):
                 self.assertEqual(content.count(BEGIN), 1)
                 self.assertEqual(content.count(END), 1)
                 self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o600)
+
+    def test_workspace_policy_is_part_of_the_managed_block(self):
+        self.install_ok()
+        for relative in TARGETS:
+            with self.subTest(target=relative):
+                content = (self.user_home / relative).read_text()
+                block = content[content.index(BEGIN):content.index(END)]
+                self.assertIn("Workspace Layout and Task Worktrees", block)
+                self.assertIn("~/devel/worktrees/portaj/<repo>/<task>", block)
+                self.assertIn("wt.sh start", block)
+                self.assertIn("scratch-setup.sh", block)
+                self.assertIn("prrq where", block)
+                # the personal preference still comes first
+                self.assertLess(block.index("Supreme Commander"), block.index("Workspace Layout"))
+
+    def test_gemini_instructions_follow_only_when_gemini_exists(self):
+        self.install_ok()
+        self.assertFalse((self.user_home / ".gemini").exists())
+        (self.user_home / ".gemini").mkdir(parents=True)
+        self.write(".gemini/GEMINI.md", b"")
+        self.install_ok()
+        content = (self.user_home / ".gemini/GEMINI.md").read_text()
+        self.assertEqual(content.count(BEGIN), 1)
+        self.assertIn("wt.sh start", content)
+
+    def test_shared_skills_are_linked_into_every_client_without_replacing(self):
+        skill = self.user_home / ".claude/skills/ai-scratch"
+        skill.mkdir(parents=True)
+        (skill / "SKILL.md").write_text("# AI Scratch\n")
+        (self.user_home / ".agents").mkdir()
+        (self.user_home / ".gemini").mkdir()
+        foreign = self.user_home / ".agents/skills/ai-scratch"
+        foreign.mkdir(parents=True)
+        (foreign / "SKILL.md").write_text("someone else's copy\n")
+        self.install_ok()
+        for relative in (".claude-az/skills", ".claude-w/skills", ".codex/skills", ".gemini/skills"):
+            with self.subTest(client=relative):
+                link = self.user_home / relative / "ai-scratch"
+                self.assertTrue(link.is_symlink(), f"missing shared skill link: {relative}")
+                self.assertEqual(link.resolve(), skill.resolve())
+        self.assertFalse(foreign.is_symlink())
+        self.assertEqual((foreign / "SKILL.md").read_text(), "someone else's copy\n")
+        # opencode and copilot are absent, so nothing is created for them
+        self.assertFalse((self.user_home / ".config/opencode").exists())
+        self.assertFalse((self.user_home / ".copilot").exists())
+        # a second run changes nothing
+        self.install_ok()
+        self.assertTrue((self.user_home / ".claude-w/skills/ai-scratch").is_symlink())
 
     def test_existing_text_backup_mode_and_rerun_are_preserved(self):
         originals = {}
