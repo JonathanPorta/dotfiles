@@ -14,7 +14,7 @@ import unittest
 REPO = Path(__file__).resolve().parents[1]
 BEGIN = "<!-- dotfiles:personal-instructions:start -->"
 END = "<!-- dotfiles:personal-instructions:end -->"
-TARGETS = (".claude/CLAUDE.md", ".claude-az/CLAUDE.md", ".codex/AGENTS.md")
+TARGETS = (".claude/CLAUDE.md", ".claude-az/CLAUDE.md", ".claude-w/CLAUDE.md", ".codex/AGENTS.md")
 
 
 class PersonalInstructionsTests(unittest.TestCase):
@@ -64,6 +64,126 @@ class PersonalInstructionsTests(unittest.TestCase):
                 self.assertEqual(content.count(BEGIN), 1)
                 self.assertEqual(content.count(END), 1)
                 self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o600)
+
+    def test_workspace_policy_is_part_of_the_managed_block(self):
+        self.install_ok()
+        for relative in TARGETS:
+            with self.subTest(target=relative):
+                content = (self.user_home / relative).read_text()
+                block = content[content.index(BEGIN):content.index(END)]
+                self.assertIn("Workspace Layout and Task Worktrees", block)
+                self.assertIn("~/devel/worktrees/portaj/<repo>/<task>", block)
+                self.assertIn("wt.sh start", block)
+                self.assertIn("scratch-setup.sh", block)
+                self.assertIn("prrq where", block)
+                self.assertIn("prrq add <pr-url>", block)
+                self.assertIn("Use PRRQ", block)
+                self.assertIn("Use the `ai-scratch` skill", block)
+                # the personal preference still comes first
+                self.assertLess(block.index("Supreme Commander"), block.index("Workspace Layout"))
+
+    def test_gemini_instructions_follow_only_when_gemini_exists(self):
+        self.install_ok()
+        self.assertFalse((self.user_home / ".gemini").exists())
+        (self.user_home / ".gemini").mkdir(parents=True)
+        self.write(".gemini/GEMINI.md", b"")
+        self.install_ok()
+        content = (self.user_home / ".gemini/GEMINI.md").read_text()
+        self.assertEqual(content.count(BEGIN), 1)
+        self.assertIn("wt.sh start", content)
+
+    def test_shared_skills_are_linked_into_every_client_without_replacing(self):
+        skill = self.user_home / ".claude/skills/ai-scratch"
+        skill.mkdir(parents=True)
+        (skill / "SKILL.md").write_text("# AI Scratch\n")
+        (self.user_home / ".agents").mkdir()
+        (self.user_home / ".gemini").mkdir()
+        foreign = self.user_home / ".agents/skills/ai-scratch"
+        foreign.mkdir(parents=True)
+        (foreign / "SKILL.md").write_text("someone else's copy\n")
+        self.install_ok()
+        for relative in (".claude-az/skills", ".claude-w/skills", ".codex/skills", ".gemini/skills"):
+            with self.subTest(client=relative):
+                link = self.user_home / relative / "ai-scratch"
+                self.assertTrue(link.is_symlink(), f"missing shared skill link: {relative}")
+                self.assertEqual(link.resolve(), skill.resolve())
+        self.assertFalse(foreign.is_symlink())
+        self.assertEqual((foreign / "SKILL.md").read_text(), "someone else's copy\n")
+        # opencode and copilot are absent, so nothing is created for them
+        self.assertFalse((self.user_home / ".config/opencode").exists())
+        self.assertFalse((self.user_home / ".copilot").exists())
+        # a second run changes nothing
+        self.install_ok()
+        self.assertTrue((self.user_home / ".claude-w/skills/ai-scratch").is_symlink())
+
+    def test_incompatible_skills_paths_are_skipped_before_any_write_and_never_replaced(self):
+        skill = self.user_home / ".claude/skills/ai-scratch"
+        skill.mkdir(parents=True)
+        (skill / "SKILL.md").write_text("# AI Scratch\n")
+        clients = {
+            ".claude-az/skills": None, ".claude-w/skills": None, ".agents/skills": ".agents",
+            ".codex/skills": ".codex", ".gemini/skills": ".gemini",
+            ".config/opencode/skills": ".config/opencode", ".copilot/skills": ".copilot",
+        }
+        for shape in ("regular-file", "dangling-link", "file-link"):
+            for relative, root in clients.items():
+                with self.subTest(shape=shape, client=relative):
+                    home = self.root / f"home-{shape}-{relative.replace('/', '_')}"
+                    (home / ".claude/skills").mkdir(parents=True)
+                    (home / ".claude/skills/ai-scratch").symlink_to(skill)
+                    if root:
+                        (home / root).mkdir(parents=True)
+                    target = home / relative
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    if shape == "regular-file":
+                        target.write_bytes(b"not a directory\n")
+                    elif shape == "dangling-link":
+                        target.symlink_to(home / "nowhere")
+                    else:
+                        (home / "afile").write_bytes(b"x\n")
+                        target.symlink_to(home / "afile")
+                    before = (target.read_bytes() if target.is_file() else os.readlink(target))
+                    result = self.install_ok(user_home=home)
+                    self.assertIn("shared skills not linked", result.stdout)
+                    after = (target.read_bytes() if target.is_file() else os.readlink(target))
+                    self.assertEqual(before, after)
+                    self.assertFalse((target / "ai-scratch").exists() if target.is_dir() else False)
+                    # the rest of the install completed: every instruction target is written
+                    for instructions in TARGETS:
+                        self.assertIn("Workspace Layout", (home / instructions).read_text())
+
+    def test_a_client_root_that_is_a_file_is_skipped_too(self):
+        skill = self.user_home / ".claude/skills/ai-scratch"
+        skill.mkdir(parents=True)
+        root = self.user_home / ".gemini"
+        root.write_bytes(b"i am a file\n")
+        result = self.install_ok()
+        self.assertNotIn("Traceback", result.stderr)
+        self.assertEqual(root.read_bytes(), b"i am a file\n")
+
+    def test_an_instruction_profile_root_that_is_not_a_directory_is_skipped_before_any_write(self):
+        for shape in ("regular-file", "dangling-link", "file-link"):
+            with self.subTest(shape=shape):
+                home = self.root / f"home-root-{shape}"
+                self.write(".claude/settings.json", b"{}\n", home)
+                root = home / ".claude-w"
+                if shape == "regular-file":
+                    root.write_bytes(b"not a directory\n")
+                elif shape == "dangling-link":
+                    root.symlink_to(home / "nowhere")
+                else:
+                    (home / "afile").write_bytes(b"x\n")
+                    root.symlink_to(home / "afile")
+                before = root.read_bytes() if root.is_file() else os.readlink(root)
+                result = self.install_ok(user_home=home)
+                self.assertNotIn("Traceback", result.stderr)
+                self.assertIn("personal instructions not written", result.stdout)
+                self.assertIn(".claude-w", result.stdout)
+                after = root.read_bytes() if root.is_file() else os.readlink(root)
+                self.assertEqual(before, after)
+                self.assertFalse((home / ".claude-w/CLAUDE.md").exists())
+                for relative in (".claude/CLAUDE.md", ".claude-az/CLAUDE.md"):
+                    self.assertIn("**Supreme Commander**", (home / relative).read_text())
 
     def test_existing_text_backup_mode_and_rerun_are_preserved(self):
         originals = {}

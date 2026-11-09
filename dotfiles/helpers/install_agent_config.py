@@ -453,6 +453,118 @@ def apply_symlink(plan: tuple[Path, Path, str, Path | None]) -> bool:
     return True
 
 
+# Every Claude Code profile on this machine; each gets the same managed block.
+CLAUDE_PROFILES = (".claude", ".claude-az", ".claude-w")
+
+# The managed instruction block is these fragments, in this order.
+INSTRUCTION_FRAGMENTS = ("personal-instructions.md", "workspace-policy.md")
+
+# Skills installed once under ~/.claude/skills and linked into every other client,
+# so one checkout (ai-skills, prrq) serves every agent. Source missing: skipped.
+SHARED_SKILLS = ("ai-scratch", "tracker", "prrq", "recon")
+SKILL_CLIENT_DIRS = (
+    ".claude-az/skills",
+    ".claude-w/skills",
+    ".agents/skills",
+    ".codex/skills",
+    ".gemini/skills",
+    ".config/opencode/skills",
+    ".copilot/skills",
+)
+
+
+def read_instruction_fragments(fragments_root: Path) -> str:
+    parts = []
+    for name in INSTRUCTION_FRAGMENTS:
+        text = read_utf8(fragments_root / name).strip()
+        if not text or any(marker in text for marker in (INSTRUCTIONS_BEGIN, INSTRUCTIONS_END)):
+            raise SafetyError(f"{name} must be nonempty and contain no managed markers")
+        parts.append(text)
+    return "\n\n".join(parts)
+
+
+def plan_shared_skill_links(
+    home: Path, *, codex_installed: bool
+) -> list[tuple[Path, Path, str]]:
+    """Plan shared-skill symlinks without touching the filesystem.
+
+    Every destination is validated here, before any config or instruction file is
+    written, so apply_skill_link never raises on a user's own entry: a client whose
+    root or ``skills`` path exists but is not a real directory (a regular file, a
+    dangling or non-directory symlink) is skipped with a note, and an existing entry
+    at a destination is kept as is. Only an absent destination becomes a link.
+    """
+    plans: list[tuple[Path, Path, str]] = []
+    for relative in SKILL_CLIENT_DIRS:
+        parts = Path(relative).parts
+        if relative.startswith(".codex/") and not codex_installed:
+            continue
+        client_root = home / parts[0] if not relative.startswith(".config/") else home / ".config" / parts[1]
+        optional = client_root.name not in {".claude-az", ".claude-w"}
+        if optional and not client_root.is_dir():
+            continue
+        skills_dir = home / relative
+        incompatible = None
+        for ancestor in (client_root, skills_dir):
+            if os.path.lexists(ancestor) and not (ancestor.is_dir() and not _dangling(ancestor)):
+                incompatible = ancestor
+                break
+        if incompatible is not None:
+            plans.append((incompatible, skills_dir, "skip-client"))
+            continue
+        for skill in SHARED_SKILLS:
+            source = home / ".claude" / "skills" / skill
+            if not source.exists():
+                continue
+            resolved = source.resolve()
+            destination = skills_dir / skill
+            if destination.is_symlink():
+                try:
+                    same = destination.resolve(strict=True) == resolved
+                except OSError:
+                    same = False
+                plans.append((resolved, destination, "unchanged" if same else "kept"))
+            elif os.path.lexists(destination):
+                plans.append((resolved, destination, "kept"))
+            else:
+                plans.append((resolved, destination, "link"))
+    return plans
+
+
+def _dangling(path: Path) -> bool:
+    return path.is_symlink() and not path.exists()
+
+
+def incompatible_instruction_parent(home: Path, target: Path) -> Path | None:
+    """Return the ancestor of ``target`` (below ``home``) that is not a real directory.
+
+    An instruction file's parent is created on demand, so a profile root that exists
+    as a regular file, a dangling symlink or a symlink to a file would make the write
+    fail after earlier configs changed. Such a profile is skipped before any write,
+    and the user's entry is left exactly as it is.
+    """
+    ancestor = target.parent
+    while ancestor != home and home in ancestor.parents:
+        if os.path.lexists(ancestor) and not (ancestor.is_dir() and not _dangling(ancestor)):
+            return ancestor
+        ancestor = ancestor.parent
+    return None
+
+
+def apply_skill_link(plan: tuple[Path, Path, str]) -> bool:
+    source, destination, action = plan
+    if action == "skip-client":
+        print(f"note: {source} is not a directory; shared skills not linked into {destination.parent if destination.name == 'skills' else destination}")
+        return False
+    if action != "link":
+        if action == "kept":
+            print(f"note: {destination} exists and is not the shared skill; left as is")
+        return False
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.symlink_to(source)
+    return True
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--dotfiles-dir", type=Path, required=True)
@@ -477,15 +589,12 @@ def main() -> int:
         args.home / ".claude" / "statusline-command.sh",
     )
 
-    instructions = read_utf8(fragments_root / "personal-instructions.md").strip()
-    if not instructions or any(
-        marker in instructions for marker in (INSTRUCTIONS_BEGIN, INSTRUCTIONS_END)
-    ):
-        raise SafetyError("personal-instructions.md must be nonempty and contain no managed markers")
+    instructions = read_instruction_fragments(fragments_root)
     instruction_targets = [
-        args.home / ".claude" / "CLAUDE.md",
-        args.home / ".claude-az" / "CLAUDE.md",
+        args.home / profile / "CLAUDE.md" for profile in CLAUDE_PROFILES
     ]
+    if (args.home / ".gemini").is_dir():
+        instruction_targets.append(args.home / ".gemini" / "GEMINI.md")
     if codex_plan is not None:
         override = args.home / ".codex" / "AGENTS.override.md"
         require_regular_target(override)
@@ -493,15 +602,25 @@ def main() -> int:
             override if override.exists() and read_utf8(override).strip()
             else args.home / ".codex" / "AGENTS.md"
         )
+    writable_targets = []
+    for target in instruction_targets:
+        blocker = incompatible_instruction_parent(args.home, target)
+        if blocker is not None:
+            print(f"note: {blocker} is not a directory; personal instructions not written to {target}")
+            continue
+        writable_targets.append(target)
     instruction_plans = [
-        plan_personal_instructions(target, instructions) for target in instruction_targets
+        plan_personal_instructions(target, instructions) for target in writable_targets
     ]
 
     claude_changed = atomic_write(claude_target, claude_content)
     codex_changed = atomic_write(*codex_plan) if codex_plan is not None else None
     install_herdr_script(herdr_plan)
     renderer_changed = apply_symlink(renderer_plan)
+    skill_plans = plan_shared_skill_links(args.home, codex_installed=codex_plan is not None)
+
     instructions_changed = sum(atomic_write(*plan) for plan in instruction_plans)
+    skills_linked = sum(apply_skill_link(plan) for plan in skill_plans)
 
     if codex_changed is None:
         codex_result = "skipped (not installed)"
@@ -513,7 +632,8 @@ def main() -> int:
         f"Claude {'updated' if claude_changed else 'unchanged'}, "
         f"Codex {codex_result}, "
         f"renderer {'linked' if renderer_changed else 'unchanged'}, "
-        f"personal instructions {instructions_changed} updated."
+        f"personal instructions {instructions_changed} updated, "
+        f"shared skill links {skills_linked} created."
     )
     return 0
 
