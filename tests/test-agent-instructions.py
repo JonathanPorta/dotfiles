@@ -116,6 +116,51 @@ class PersonalInstructionsTests(unittest.TestCase):
         self.install_ok()
         self.assertTrue((self.user_home / ".claude-w/skills/ai-scratch").is_symlink())
 
+    def test_incompatible_skills_paths_are_skipped_before_any_write_and_never_replaced(self):
+        skill = self.user_home / ".claude/skills/ai-scratch"
+        skill.mkdir(parents=True)
+        (skill / "SKILL.md").write_text("# AI Scratch\n")
+        clients = {
+            ".claude-az/skills": None, ".claude-w/skills": None, ".agents/skills": ".agents",
+            ".codex/skills": ".codex", ".gemini/skills": ".gemini",
+            ".config/opencode/skills": ".config/opencode", ".copilot/skills": ".copilot",
+        }
+        for shape in ("regular-file", "dangling-link", "file-link"):
+            for relative, root in clients.items():
+                with self.subTest(shape=shape, client=relative):
+                    home = self.root / f"home-{shape}-{relative.replace('/', '_')}"
+                    (home / ".claude/skills").mkdir(parents=True)
+                    (home / ".claude/skills/ai-scratch").symlink_to(skill)
+                    if root:
+                        (home / root).mkdir(parents=True)
+                    target = home / relative
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    if shape == "regular-file":
+                        target.write_bytes(b"not a directory\n")
+                    elif shape == "dangling-link":
+                        target.symlink_to(home / "nowhere")
+                    else:
+                        (home / "afile").write_bytes(b"x\n")
+                        target.symlink_to(home / "afile")
+                    before = (target.read_bytes() if target.is_file() else os.readlink(target))
+                    result = self.install_ok(user_home=home)
+                    self.assertIn("shared skills not linked", result.stdout)
+                    after = (target.read_bytes() if target.is_file() else os.readlink(target))
+                    self.assertEqual(before, after)
+                    self.assertFalse((target / "ai-scratch").exists() if target.is_dir() else False)
+                    # the rest of the install completed: every instruction target is written
+                    for instructions in TARGETS:
+                        self.assertIn("Workspace Layout", (home / instructions).read_text())
+
+    def test_a_client_root_that_is_a_file_is_skipped_too(self):
+        skill = self.user_home / ".claude/skills/ai-scratch"
+        skill.mkdir(parents=True)
+        root = self.user_home / ".gemini"
+        root.write_bytes(b"i am a file\n")
+        result = self.install_ok()
+        self.assertNotIn("Traceback", result.stderr)
+        self.assertEqual(root.read_bytes(), b"i am a file\n")
+
     def test_existing_text_backup_mode_and_rerun_are_preserved(self):
         originals = {}
         for index, relative in enumerate(TARGETS):

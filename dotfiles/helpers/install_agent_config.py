@@ -486,25 +486,41 @@ def read_instruction_fragments(fragments_root: Path) -> str:
 def plan_shared_skill_links(
     home: Path, *, codex_installed: bool
 ) -> list[tuple[Path, Path, str]]:
-    """Plan symlinks for shared skills; never replace anything that already exists."""
+    """Plan shared-skill symlinks without touching the filesystem.
+
+    Every destination is validated here, before any config or instruction file is
+    written, so apply_skill_link never raises on a user's own entry: a client whose
+    root or ``skills`` path exists but is not a real directory (a regular file, a
+    dangling or non-directory symlink) is skipped with a note, and an existing entry
+    at a destination is kept as is. Only an absent destination becomes a link.
+    """
     plans: list[tuple[Path, Path, str]] = []
     for relative in SKILL_CLIENT_DIRS:
-        client_root = home / Path(relative).parts[0]
+        parts = Path(relative).parts
         if relative.startswith(".codex/") and not codex_installed:
             continue
-        if relative.startswith(".config/"):
-            client_root = home / ".config" / Path(relative).parts[1]
-        if client_root.name not in {".claude-az", ".claude-w"} and not client_root.is_dir():
+        client_root = home / parts[0] if not relative.startswith(".config/") else home / ".config" / parts[1]
+        optional = client_root.name not in {".claude-az", ".claude-w"}
+        if optional and not client_root.is_dir():
+            continue
+        skills_dir = home / relative
+        incompatible = None
+        for ancestor in (client_root, skills_dir):
+            if os.path.lexists(ancestor) and not (ancestor.is_dir() and not _dangling(ancestor)):
+                incompatible = ancestor
+                break
+        if incompatible is not None:
+            plans.append((incompatible, skills_dir, "skip-client"))
             continue
         for skill in SHARED_SKILLS:
             source = home / ".claude" / "skills" / skill
             if not source.exists():
                 continue
             resolved = source.resolve()
-            destination = home / relative / skill
+            destination = skills_dir / skill
             if destination.is_symlink():
                 try:
-                    same = destination.resolve() == resolved
+                    same = destination.resolve(strict=True) == resolved
                 except OSError:
                     same = False
                 plans.append((resolved, destination, "unchanged" if same else "kept"))
@@ -515,8 +531,15 @@ def plan_shared_skill_links(
     return plans
 
 
+def _dangling(path: Path) -> bool:
+    return path.is_symlink() and not path.exists()
+
+
 def apply_skill_link(plan: tuple[Path, Path, str]) -> bool:
     source, destination, action = plan
+    if action == "skip-client":
+        print(f"note: {source} is not a directory; shared skills not linked into {destination.parent if destination.name == 'skills' else destination}")
+        return False
     if action != "link":
         if action == "kept":
             print(f"note: {destination} exists and is not the shared skill; left as is")
