@@ -32,6 +32,24 @@ def deep_merge(base: dict[str, Any], overlay: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
+def deep_merge_union(base: dict[str, Any], overlay: dict[str, Any]) -> dict[str, Any]:
+    """Recursively merge objects; arrays keep the target's entries and append new ones.
+
+    Used for the profile-shared fragments (permission rules, classifier rules), where a
+    user's own entries in a profile's settings must survive and the fragment only adds.
+    """
+    result = copy.deepcopy(base)
+    for key, value in overlay.items():
+        current = result.get(key)
+        if isinstance(value, dict) and isinstance(current, dict):
+            result[key] = deep_merge_union(current, value)
+        elif isinstance(value, list) and isinstance(current, list):
+            result[key] = current + [copy.deepcopy(item) for item in value if item not in current]
+        else:
+            result[key] = copy.deepcopy(value)
+    return result
+
+
 def require_regular_target(path: Path) -> None:
     if path.is_symlink():
         raise SafetyError(
@@ -143,8 +161,41 @@ def plan_claude_config(home: Path, fragments_dir: Path) -> tuple[Path, str]:
         fragment = read_json_object(fragment_path, label="Claude config fragment")
         merged = deep_merge(merged, fragment)
 
+    merged = merge_profile_fragments(merged, fragments_dir.parent / PROFILE_FRAGMENTS_DIR)
     configure_herdr_session(merged)
     return target, json.dumps(merged, indent=2, ensure_ascii=False) + "\n"
+
+
+PROFILE_FRAGMENTS_DIR = "claude-profiles"
+
+
+def merge_profile_fragments(merged: dict[str, Any], fragments_dir: Path) -> dict[str, Any]:
+    """Apply the fragments every Claude profile shares (array entries are added, not replaced)."""
+    for fragment_path in sorted(fragments_dir.glob("*.json")) if fragments_dir.is_dir() else []:
+        fragment = read_json_object(fragment_path, label="Claude profile fragment")
+        merged = deep_merge_union(merged, fragment)
+    return merged
+
+
+def plan_profile_settings(home: Path, fragments_root: Path) -> list[tuple[Path, str]]:
+    """Plan settings.json for the alternate Claude profiles (.claude-az, .claude-w).
+
+    Each profile keeps its own hand-maintained settings; only the profile-shared
+    fragments are merged in. A profile root that exists but is not a real directory is
+    skipped with a note before any write, like the instruction targets.
+    """
+    plans: list[tuple[Path, str]] = []
+    for profile in CLAUDE_PROFILES[1:]:
+        target = home / profile / "settings.json"
+        blocker = incompatible_instruction_parent(home, target)
+        if blocker is not None:
+            print(f"note: {blocker} is not a directory; profile settings not written to {target}")
+            continue
+        require_regular_target(target)
+        current = read_json_object(target, label=f"{profile} settings") if target.exists() else {}
+        merged = merge_profile_fragments(current, fragments_root / PROFILE_FRAGMENTS_DIR)
+        plans.append((target, json.dumps(merged, indent=2, ensure_ascii=False) + "\n"))
+    return plans
 
 
 CODEX_TUI_KEYS = {"notification_condition", "notifications", "status_line"}
@@ -457,7 +508,7 @@ def apply_symlink(plan: tuple[Path, Path, str, Path | None]) -> bool:
 CLAUDE_PROFILES = (".claude", ".claude-az", ".claude-w")
 
 # The managed instruction block is these fragments, in this order.
-INSTRUCTION_FRAGMENTS = ("personal-instructions.md", "workspace-policy.md")
+INSTRUCTION_FRAGMENTS = ("personal-instructions.md", "workspace-policy.md", "publication-authority.md")
 
 # Skills installed once under ~/.claude/skills and linked into every other client,
 # so one checkout (ai-skills, prrq) serves every agent. Source missing: skipped.
@@ -612,8 +663,10 @@ def main() -> int:
     instruction_plans = [
         plan_personal_instructions(target, instructions) for target in writable_targets
     ]
+    profile_plans = plan_profile_settings(args.home, fragments_root)
 
     claude_changed = atomic_write(claude_target, claude_content)
+    profiles_changed = sum(atomic_write(*plan) for plan in profile_plans)
     codex_changed = atomic_write(*codex_plan) if codex_plan is not None else None
     install_herdr_script(herdr_plan)
     renderer_changed = apply_symlink(renderer_plan)
@@ -630,6 +683,7 @@ def main() -> int:
     print(
         "Agent config: "
         f"Claude {'updated' if claude_changed else 'unchanged'}, "
+        f"profile settings {profiles_changed} updated, "
         f"Codex {codex_result}, "
         f"renderer {'linked' if renderer_changed else 'unchanged'}, "
         f"personal instructions {instructions_changed} updated, "

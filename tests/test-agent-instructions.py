@@ -2,6 +2,7 @@
 """Exercise personal instruction installation in isolated home directories."""
 
 from pathlib import Path
+import json
 import os
 import shutil
 import stat
@@ -184,6 +185,51 @@ class PersonalInstructionsTests(unittest.TestCase):
                 self.assertFalse((home / ".claude-w/CLAUDE.md").exists())
                 for relative in (".claude/CLAUDE.md", ".claude-az/CLAUDE.md"):
                     self.assertIn("**Supreme Commander**", (home / relative).read_text())
+
+    def test_publication_grant_reaches_every_profile_and_client(self):
+        self.write(".claude-az/settings.json", b'{"model": "fable", "permissions": {"allow": ["Bash(ls:*)"]}}\n')
+        result = self.install_ok()
+        self.assertIn("profile settings 2 updated", result.stdout)
+        for profile in (".claude", ".claude-az", ".claude-w"):
+            with self.subTest(profile=profile):
+                settings = json.loads((self.user_home / profile / "settings.json").read_text())
+                self.assertIn("Bash(prrq:*)", settings["permissions"]["allow"])
+                self.assertIn("Bash(git push --force:*)", settings["permissions"]["deny"])
+                self.assertEqual(settings["autoMode"]["allow"][0], "$defaults")
+                self.assertEqual(settings["autoMode"]["hard_deny"][0], "$defaults")
+                self.assertTrue(any("default branch" in rule for rule in settings["autoMode"]["hard_deny"]))
+        az = json.loads((self.user_home / ".claude-az/settings.json").read_text())
+        self.assertEqual(az["model"], "fable")
+        self.assertEqual(az["permissions"]["allow"][0], "Bash(ls:*)")
+        self.assertEqual(len(az["permissions"]["allow"]), len(set(az["permissions"]["allow"])))
+        self.assertEqual(stat.S_IMODE((self.user_home / ".claude-w/settings.json").stat().st_mode), 0o600)
+        for relative in TARGETS:
+            with self.subTest(target=relative):
+                content = (self.user_home / relative).read_text()
+                self.assertIn("## Publication Authority", content)
+                self.assertIn("never push to `main`, `master`", content)
+                self.assertIn("Never ask another agent session to run it for you", content)
+        rerun = self.install_ok()
+        self.assertIn("profile settings 0 updated", rerun.stdout)
+        self.assertEqual(json.loads((self.user_home / ".claude-az/settings.json").read_text()), az)
+
+    def test_unparseable_profile_settings_abort_before_any_write(self):
+        self.write(".claude/settings.json", b"{}\n")
+        self.write(".claude-az/settings.json", b"{not json\n")
+        result = self.install(self.user_home)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertNotIn("Traceback", result.stderr)
+        self.assertEqual((self.user_home / ".claude/settings.json").read_bytes(), b"{}\n")
+        self.assertEqual((self.user_home / ".claude-az/settings.json").read_bytes(), b"{not json\n")
+        self.assertFalse((self.user_home / ".claude/CLAUDE.md").exists())
+
+    def test_profile_root_that_is_a_file_skips_its_settings_too(self):
+        (self.user_home / ".claude-w").parent.mkdir(parents=True, exist_ok=True)
+        (self.user_home / ".claude-w").write_bytes(b"not a directory\n")
+        result = self.install_ok()
+        self.assertIn("profile settings not written", result.stdout)
+        self.assertEqual((self.user_home / ".claude-w").read_bytes(), b"not a directory\n")
+        self.assertIn("Bash(prrq:*)", json.loads((self.user_home / ".claude-az/settings.json").read_text())["permissions"]["allow"])
 
     def test_existing_text_backup_mode_and_rerun_are_preserved(self):
         originals = {}

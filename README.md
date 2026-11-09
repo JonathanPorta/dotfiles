@@ -179,6 +179,24 @@ Project-level `.claude` configuration still applies when profiles use the same
 project. Both `init.sh` and `run.sh` install these commands through the existing
 `.zshrc` symlink setup.
 
+### Settings every Claude profile shares
+
+`dotfiles/agent-config.d/claude/*.json` renders only `~/.claude/settings.json`; the
+Azimuth and Work profiles keep their own hand-maintained `settings.json`. Fragments in
+`dotfiles/agent-config.d/claude-profiles/` are merged into **all three** profiles
+instead. Arrays there add entries and never replace a profile's existing ones, so a
+rule you added by hand survives every `run.sh`.
+
+`claude-profiles/45-publication.json` carries the standing publication grant from
+2026-11-09: permission rules that allow `prrq` and the read/edit `gh pr` verbs, deny
+rules for force pushes and pushes to `main`/`master`, and auto-mode classifier text
+(`autoMode.allow` / `autoMode.hard_deny`, each starting with `$defaults`) that lets the
+classifier permit feature-branch pushes, PR creation and rule-following merges while
+still hard-blocking the default branch. The human-readable version of the same grant,
+`dotfiles/agent-config.d/publication-authority.md`, is part of the managed instruction
+block rendered into every client (Claude profiles, Codex, Gemini), so a fresh session
+in any repository knows the rule without being told.
+
 ### Session names in cmux
 
 Inside a cmux workspace, `claude` and `claude-az` name the session after the
@@ -356,9 +374,10 @@ Then start new Claude/Codex sessions. There is no separate agent-config step
 required. `bash installation/agent-config.sh` is also available when you want
 to refresh only the agent configuration.
 
-Additional profiles using other `CLAUDE_CONFIG_DIR` or `CODEX_HOME` paths need
-the preference installed in their own user instruction files; web chats and
-remote agents do not read these local files.
+The installer covers the three Claude profiles above plus Codex and Gemini. A
+profile at some other `CLAUDE_CONFIG_DIR` or `CODEX_HOME` path needs the preference
+installed in its own user instruction files; web chats and remote agents do not read
+these local files.
 
 Run the preservation and idempotency test with:
 

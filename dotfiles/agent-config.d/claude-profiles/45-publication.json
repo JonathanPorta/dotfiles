@@ -1,0 +1,42 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(prrq:*)",
+      "Bash(gh pr create:*)",
+      "Bash(gh pr edit:*)",
+      "Bash(gh pr comment:*)",
+      "Bash(gh pr view:*)",
+      "Bash(gh pr list:*)",
+      "Bash(gh pr checks:*)"
+    ],
+    "deny": [
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)",
+      "Bash(git push --force-with-lease:*)",
+      "Bash(git push --delete:*)",
+      "Bash(git push -d:*)",
+      "Bash(git push origin main:*)",
+      "Bash(git push origin master:*)",
+      "Bash(git push -u origin main:*)",
+      "Bash(git push -u origin master:*)",
+      "Bash(git push --set-upstream origin main:*)",
+      "Bash(git push --set-upstream origin master:*)",
+      "Bash(git push origin HEAD:main:*)",
+      "Bash(git push origin HEAD:master:*)",
+      "Bash(git push * main)",
+      "Bash(git push * master)",
+      "Bash(git push * HEAD:main)",
+      "Bash(git push * HEAD:master)"
+    ]
+  },
+  "autoMode": {
+    "allow": [
+      "$defaults",
+      "Publishing the agent's own work the way Jonathan Porta granted on 2026-11-09 (dotfiles agent-config.d/publication-authority.md): `git push` of a feature branch that is not the repository's default branch (main/master) and not a release branch, `gh pr create`/`gh pr edit`/`gh pr comment`, `prrq add`/`prrq check` and the other prrq verbs, and `gh pr merge` of a pull request when the user asked for that merge in this conversation or the prrq skill's merge gate (approved for the current head, mergeable, CLEAN, checks green) is satisfied."
+    ],
+    "hard_deny": [
+      "$defaults",
+      "Any `git push` whose destination is the repository's default branch (main/master) or a release/protected branch, any force push (--force, -f, --force-with-lease) to any branch, and deleting a remote branch that is not the pull request's own feature branch after its merge. The 2026-11-09 publication grant never covers these."
+    ]
+  }
+}
