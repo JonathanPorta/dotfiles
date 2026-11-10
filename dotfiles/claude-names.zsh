@@ -124,17 +124,31 @@ _claude_profile_dir() {
 # Sets reply to the matching transcripts. Returns 3, with _claude_resume_err
 # naming what could not be read, when the search itself failed.
 _claude_resume_find() {
-  local p="$1/projects" sub
+  local prof=$1 p="$1/projects" sub
   local -a bad
   reply=()
   _claude_resume_err=
-  [[ -e $p ]] || return 0
+  # Absence is only believable when it can be observed: a missing profile is
+  # empty, but a profile that exists and cannot be searched hides projects/.
+  [[ -e $prof || -L $prof ]] || return 0
+  if [[ ! -d $prof || ! -x $prof ]]; then
+    _claude_resume_err=$prof
+    return 3
+  fi
+  [[ -e $p || -L $p ]] || return 0
   if [[ ! -d $p || ! -r $p || ! -x $p ]]; then
     _claude_resume_err=$p
     return 3
   fi
-  for sub in "$p"/*(N/); do
-    [[ -r $sub && -x $sub ]] || bad+=("$sub")
+  # Check every entry the candidate search can traverse, symlinks included:
+  # a directory (real or linked) must be readable and searchable, and a link
+  # whose target cannot be resolved fails closed.
+  for sub in "$p"/*(ND); do
+    if [[ -L $sub && ! -e $sub ]]; then
+      bad+=("$sub")
+    elif [[ -d $sub ]]; then
+      [[ -r $sub && -x $sub ]] || bad+=("$sub")
+    fi
   done
   # An unreadable project directory could hold another copy, so a visible
   # match is not proof of a unique one: refuse rather than pick it.

@@ -175,6 +175,60 @@ done
 run claude-az --resume "$ID_P"; expect_launch "control: cross-profile single match" "$home/.claude-az" --resume "$P_PATH"
 run claude-az --resume "$ID_X"; [[ $RC == 2 ]] && grep -q 'ambiguous' <<<"$ERR" || fail "control: readable duplicate is still ambiguous"
 
+# --- an inaccessible profile directory is a lookup failure, not "absent"
+for case in "claude:.claude" "claude-az:.claude-az"; do
+  IFS=: read -r cmd prof <<<"$case"
+  label="$cmd, invoked profile directory inaccessible (session in both)"
+  chmod 000 "$home/$prof"
+  run $cmd --resume "$ID_B"
+  chmod 755 "$home/$prof"
+  [[ $RC == 2 ]] || fail "$label: exit $RC, want 2"
+  [[ $LOG == "<not launched>" ]] || fail "$label: launched $LOG"
+  grep -qF "cannot read $home/$prof" <<<"$ERR" || fail "$label: stderr: $ERR"
+  grep -q 'Not found' <<<"$ERR" && fail "$label: treated as not found"
+done
+
+# --- linked project directories are checked like real ones
+for case in "claude:$ID_P:.claude" "claude-az:$ID_A:.claude-az"; do
+  IFS=: read -r cmd id prof <<<"$case"
+  for hidden in no yes; do
+    label="$cmd, inaccessible linked sibling (hidden duplicate: $hidden)"
+    tgt="$test_root/linked-target"; mkdir -p "$tgt"
+    [[ $hidden == yes ]] && touch "$tgt/$id.jsonl"
+    ln -s "$tgt" "$home/$prof/projects/-Users-me-linked"
+    chmod 000 "$tgt"
+    run $cmd --resume "$id"
+    chmod 755 "$tgt"; rm -f "$home/$prof/projects/-Users-me-linked"; rm -rf "$tgt"
+    [[ $RC == 2 ]] || fail "$label: exit $RC, want 2"
+    [[ $LOG == "<not launched>" ]] || fail "$label: launched $LOG"
+  done
+  label="$cmd, dangling linked sibling"
+  ln -s "$test_root/does-not-exist" "$home/$prof/projects/-Users-me-dangling"
+  run $cmd --resume "$id"
+  rm -f "$home/$prof/projects/-Users-me-dangling"
+  [[ $RC == 2 ]] || fail "$label: exit $RC, want 2"
+done
+label="readable linked duplicate is still ambiguous"
+mkdir -p "$test_root/linked-ok"; touch "$test_root/linked-ok/$ID_A.jsonl"
+ln -s "$test_root/linked-ok" "$home/.claude-az/projects/-Users-me-linked-ok"
+run claude-az --resume "$ID_A"
+rm -f "$home/.claude-az/projects/-Users-me-linked-ok"; rm -rf "$test_root/linked-ok"
+[[ $RC == 2 ]] && grep -q ambiguous <<<"$ERR" || fail "$label: exit $RC, stderr: $ERR"
+
+# --- a genuinely absent profile is empty, not an error
+label="claude-az with no Azimuth profile at all"
+mv "$home/.claude-az" "$home/.claude-az.away"
+run claude-az --resume "$ID_P"
+mv "$home/.claude-az.away" "$home/.claude-az"
+expect_launch "$label" "$home/.claude-az" --resume "$P_PATH"
+
+# --- found in the preferred profile: the other profile is never consulted
+label="claude, preferred hit while Azimuth is unreadable"
+chmod 000 "$home/.claude-az"
+run claude --resume "$ID_P"
+chmod 755 "$home/.claude-az"
+expect_launch "$label" "<unset>" --resume "$ID_P"
+
 # --- pass-through cases: unchanged arguments, no [resume] chatter
 for args in "--resume" "--resume my-session-name" "--resume $P_PATH" "--continue" "-c" "mcp list" "-p hi" "-r"; do
   label="pass-through: $args"
