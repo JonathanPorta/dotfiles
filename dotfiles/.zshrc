@@ -137,4 +137,8 @@ fi
 # Keep command and argument spelling correction disabled after all startup setup.
 unsetopt CORRECT CORRECT_ALL
 
+# Keep directional line deletion after Oh My Zsh and other startup setup.
+bindkey '^U' backward-kill-line
+bindkey '^K' kill-line
+
 # zprof
