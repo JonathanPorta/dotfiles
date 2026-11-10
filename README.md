@@ -224,6 +224,47 @@ These launches keep Claude's default name:
 
 Set `CLAUDE_NAMES_DRY_RUN=1` to print the command instead of running it.
 
+### Resuming a session from either profile
+
+The command you type picks the **account**. The resume lookup searches **both**
+histories, so `claude-az` can pick up a conversation that started under
+`claude`, and the other way round, without switching accounts.
+
+| Command | Account it launches | Searches for `<uuid>.jsonl` in |
+|---|---|---|
+| `claude` | Personal | `~/.claude/projects`, then `~/.claude-az/projects` |
+| `claude-az` | Azimuth | `~/.claude-az/projects`, then `~/.claude/projects` |
+
+```console
+$ claude-az --resume 049f5b6d-c615-450f-8a83-eb7ffdc65599
+[resume] Looking for 049f5b6d-c615-450f-8a83-eb7ffdc65599 in Claude-AZ...
+[resume] Not found. Looking in Claude...
+[resume] Found in Claude: /Users/portaj/.claude/projects/-Users-portaj-devel-portaj-mainskeeper/049f5b6d-c615-450f-8a83-eb7ffdc65599.jsonl
+[resume] Launching Claude-AZ (Azimuth account).
+```
+
+- `--resume UUID`, `--resume=UUID` and `-r UUID` are recognised. Every other
+  argument keeps its position and boundaries.
+- **Found in the invoked profile:** the UUID passes through unchanged, so the
+  resume continues the same session, as it always did.
+- **Found only in the other profile:** the UUID is replaced by the transcript's
+  absolute path. Claude Code loads a `.jsonl` resume value as a file and
+  continues it as a new session in the invoked profile. The other profile's
+  transcript is read, never copied, linked or written.
+- **In both profiles:** the invoked profile wins.
+- **Not found** prints `[resume] Session <uuid> not found in Claude-AZ or Claude.`
+  and exits 1 without launching. **Several copies within one profile** list the
+  candidates and exit 2. **A profile that cannot be read** is reported as a
+  lookup failure, also exit 2, and never as "not found".
+- Unchanged: a bare `--resume` (the picker), a session name, an explicit
+  transcript path, `--continue`, subcommands, normal launches, and the profile
+  environment (`claude` still clears `CLAUDE_CONFIG_DIR`).
+- The `[resume]` messages go to stderr only, so `-p` and JSON output on stdout
+  stay clean.
+
+Tests: `bash tests/test-claude-resume.sh` (temporary profiles, a stub `claude`;
+no real session is started).
+
 ### Work profile privacy
 
 `claude-w` sets privacy environment variables before Claude starts and loads
