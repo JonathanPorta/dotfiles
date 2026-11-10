@@ -155,6 +155,26 @@ chmod 755 "$home/.claude-az/projects"
 expect_err_line "$label" "[resume] Could not search Claude-AZ for $ID_A: cannot read $home/.claude-az/projects"
 grep -q 'not found in' <<<"$ERR" && fail "$label: reported as not found"
 
+# --- a readable match beside an unreadable sibling project is not unique
+for case in "personal:claude:$ID_P:.claude" "personal:claude-az:$ID_P:.claude" "azimuth:claude-az:$ID_A:.claude-az" "azimuth:claude:$ID_A:.claude-az"; do
+  IFS=: read -r where cmd id prof <<<"$case"
+  for hidden in no yes; do
+    label="$cmd, $where match beside an unreadable sibling (hidden duplicate: $hidden)"
+    sib="$home/$prof/projects/-Users-me-locked"
+    mkdir -p "$sib"
+    [[ $hidden == yes ]] && touch "$sib/$id.jsonl"
+    chmod 000 "$sib"
+    run $cmd --resume "$id"
+    chmod 755 "$sib"; rm -rf "$sib"
+    [[ $RC == 2 ]] || fail "$label: exit $RC, want 2"
+    [[ $LOG == "<not launched>" ]] || fail "$label: launched $LOG"
+    grep -qF "cannot read $sib" <<<"$ERR" || fail "$label: stderr does not name $sib: $ERR"
+  done
+done
+# controls: the same matches with no unreadable sibling still launch
+run claude-az --resume "$ID_P"; expect_launch "control: cross-profile single match" "$home/.claude-az" --resume "$P_PATH"
+run claude-az --resume "$ID_X"; [[ $RC == 2 ]] && grep -q 'ambiguous' <<<"$ERR" || fail "control: readable duplicate is still ambiguous"
+
 # --- pass-through cases: unchanged arguments, no [resume] chatter
 for args in "--resume" "--resume my-session-name" "--resume $P_PATH" "--continue" "-c" "mcp list" "-p hi" "-r"; do
   label="pass-through: $args"

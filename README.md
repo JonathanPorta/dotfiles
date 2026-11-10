@@ -254,7 +254,7 @@ $ claude-az --resume 049f5b6d-c615-450f-8a83-eb7ffdc65599
 - **In both profiles:** the invoked profile wins.
 - **Not found** prints `[resume] Session <uuid> not found in Claude-AZ or Claude.`
   and exits 1 without launching. **Several copies within one profile** list the
-  candidates and exit 2. **A profile that cannot be read** is reported as a
+  candidates and exit 2. **A profile, or any project folder in it, that cannot be read** is reported as a
   lookup failure, also exit 2, and never as "not found".
 - Unchanged: a bare `--resume` (the picker), a session name, an explicit
   transcript path, `--continue`, subcommands, normal launches, and the profile

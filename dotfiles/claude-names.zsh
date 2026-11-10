@@ -136,11 +136,13 @@ _claude_resume_find() {
   for sub in "$p"/*(N/); do
     [[ -r $sub && -x $sub ]] || bad+=("$sub")
   done
-  reply=("$p"/*/"$2".jsonl(N-.))
-  if (( ! $#reply && $#bad )); then
+  # An unreadable project directory could hold another copy, so a visible
+  # match is not proof of a unique one: refuse rather than pick it.
+  if (( $#bad )); then
     _claude_resume_err=${(j:, :)bad}
     return 3
   fi
+  reply=("$p"/*/"$2".jsonl(N-.))
   return 0
 }
 

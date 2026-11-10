@@ -7,7 +7,7 @@ repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 script="$repo_root/dotfiles/claude-names.zsh"
 test_root=$(mktemp -d)
 sleeper=
-trap '[[ -n $sleeper ]] && { kill "$sleeper"; wait "$sleeper"; } 2>/dev/null; rm -rf "$test_root"' EXIT
+trap 'rc=$?; [[ -n $sleeper ]] && { kill "$sleeper"; wait "$sleeper" || true; } 2>/dev/null; rm -rf "$test_root"; exit $rc' EXIT
 
 fail() {
   echo "FAIL: $*" >&2
