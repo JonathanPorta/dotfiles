@@ -2,7 +2,7 @@
 # Claude Code status line script.
 # Layout: model [fast] | e:effort | ctx% [200k warning] | 5h reset | 7d reset |
 #         PR state | estimated cost | reported cost | line delta | owner/repo |
-#         prrq queue rollup
+#         account email | prrq queue rollup
 
 input=$(cat)
 
@@ -146,6 +146,16 @@ if [ -n "$repo_owner" ] && [ -n "$repo_name" ]; then
   parts+=("$repo_owner/$repo_name")
 else
   parts+=("$(basename "$cwd")")
+fi
+
+# Name the signed-in account, because several profiles can share one machine
+# (and sometimes one account). Read only the profile's own config file; a
+# missing file or field omits this optional segment.
+account_config="${CLAUDE_CONFIG_DIR:-$HOME}/.claude.json"
+if [ -r "$account_config" ]; then
+  account_email=$(jq -r '.oauthAccount.emailAddress // empty' \
+    "$account_config" 2>/dev/null) || account_email=""
+  [ -n "$account_email" ] && parts+=("$account_email")
 fi
 
 # Ask prrq to interpret its own state through the JSON summary contract added in

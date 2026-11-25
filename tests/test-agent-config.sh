@@ -388,6 +388,9 @@ jq -n '{
 
 status_base="Opus 4 | e:high | ctx:23%⚠ | 5h:1% | 7d:95% | PR#23 … | \$2.250 | Σ\$3.50 | Δ+12/-3 | example-org/example-repo"
 status_home="$test_root/status-home"
+# The account segment reads CLAUDE_CONFIG_DIR; never let the caller's real
+# profile leak into these renders.
+unset CLAUDE_CONFIG_DIR
 breadcrumb_dir="$status_home/.local/state/claude-statusline"
 breadcrumb_key=$(printf '%s' '/tmp/example-repo' | \
   { md5 -q 2>/dev/null || md5sum | cut -d' ' -f1; } | cut -c1-12)
@@ -457,6 +460,45 @@ invalid_prrq=$(HOME="$status_home" \
   <"$test_root/claude-status-payload.json")
 [ "$invalid_prrq" = "$status_base" ] || \
   fail "invalid prrq JSON changed the Claude status line"
+
+# The signed-in account email sits immediately before the prrq rollup, comes
+# from CLAUDE_CONFIG_DIR when set, and is omitted when the file or field is
+# missing.
+account_home="$test_root/account-home"
+account_profile="$test_root/account-profile"
+mkdir -p "$account_home" "$account_profile"
+jq -n '{oauthAccount: {emailAddress: "someone@example.com"}}' \
+  >"$account_home/.claude.json"
+jq -n '{oauthAccount: {emailAddress: "profile@example.com"}}' \
+  >"$account_profile/.claude.json"
+render_account() {
+  env "$@" PATH="$test_root/status-bin:/usr/bin:/bin:/usr/sbin:/sbin" \
+    PRRQ_CALL_LOG="$test_root/prrq-call.log" \
+    PRRQ_SUMMARY_FIXTURE="$test_root/prrq-summary.json" \
+    "$repo_root/dotfiles/agent-config.d/claude/statusline-command.sh" \
+    <"$test_root/claude-status-payload.json"
+}
+queue_suffix="🟢 1  🟡 1  🔴 1  ⚪ 1  🟠 1  ⚠️ 1  🔒 1  🚫 1"
+[ "$(render_account HOME="$account_home")" = \
+  "$status_base | someone@example.com | $queue_suffix" ] || \
+  fail "account email missing or not before the prrq rollup"
+[ "$(render_account HOME="$account_home" CLAUDE_CONFIG_DIR="$account_profile")" = \
+  "$status_base | profile@example.com | $queue_suffix" ] || \
+  fail "CLAUDE_CONFIG_DIR was not honoured for the account email"
+[ "$(render_account HOME="$account_home" CLAUDE_CONFIG_DIR=)" = \
+  "$status_base | someone@example.com | $queue_suffix" ] || \
+  fail "empty CLAUDE_CONFIG_DIR did not fall back to HOME"
+[ "$(render_account HOME="$test_root/no-such-home")" = \
+  "$status_base | $queue_suffix" ] || \
+  fail "missing account config did not omit the email"
+printf '{}\n' >"$account_profile/.claude.json"
+[ "$(render_account HOME="$account_home" CLAUDE_CONFIG_DIR="$account_profile")" = \
+  "$status_base | $queue_suffix" ] || \
+  fail "missing account field did not omit the email"
+printf 'not json' >"$account_profile/.claude.json"
+[ "$(render_account HOME="$account_home" CLAUDE_CONFIG_DIR="$account_profile")" = \
+  "$status_base | $queue_suffix" ] || \
+  fail "malformed account config did not omit the email"
 
 python3 "$repo_root/tests/test-agent-instructions.py"
 
