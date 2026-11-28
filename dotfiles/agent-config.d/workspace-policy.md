@@ -8,6 +8,15 @@ skill (`~/.claude/skills/ai-scratch/SKILL.md`) and `~/devel/worktrees/README.md`
   Jonathan explicitly asks you to review or work *in his checkout* for the current task; then
   preserve his existing changes, coordinate every write, and do nothing unrelated (no branch
   switches, resets or cleanup). That permission ends with the task.
+- **Nested workspace: CommsCore (2026-11-28).** `~/devel/portaj/comms-core` is *not* a repository:
+  it is a plain, non-Git workspace parent holding seven separate repositories, each a canonical
+  checkout under the rule above: `comms-core` (the coordinating system repository,
+  `~/devel/portaj/comms-core/comms-core`), `comms-core-contracts`, `comms-core-api`, `comms-core-web`,
+  `comms-core-provider-bridge`, `comms-core-provider-aws` and `comms-core-provider-ingress`. `wt.sh`
+  resolves them by repository name through `WT_WORKSPACES = comms-core` in `~/.ai-scratch/config`;
+  their task worktrees stay at `~/devel/worktrees/portaj/<repo>/<task>`. Start CommsCore sessions in
+  `~/devel/portaj/comms-core/comms-core` or a task worktree; `~/devel/portaj/comms-core/CLAUDE.md` is
+  the workspace handoff. Every other repository keeps the flat `~/devel/portaj/<repo>` layout.
 - **Repository work happens in an owned task worktree** at `~/devel/worktrees/portaj/<repo>/<task>`,
   created only by `wt.sh` (never by hand):
   ```sh
